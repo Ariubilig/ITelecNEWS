@@ -1,10 +1,12 @@
 import puppeteer from "puppeteer";
 import fs from "fs";
 
+
 const URL_FILE = "newURL.json";
 const ARTICLE_FILE = "articles.json";
 
 async function scrape() {
+
   const urls = JSON.parse(fs.readFileSync(URL_FILE, "utf-8"));
 
   if (!urls.length) {
@@ -98,10 +100,11 @@ async function scrape() {
     "utf-8"
   );
 
-  console.log("📊 SUMMARY");
   console.log("──────────────");
   console.log("✅ Success:", success);
   console.log("❌ Failed :", failed);
+  
 }
+
 
 scrape();
