@@ -58,10 +58,10 @@ async function scrapeLinks() {
   );
 
   console.log("────────────────────────");
-  console.log("🔎 Found total :", foundUrls.length);
-  console.log("🆕 New URLs    :", newUrls.length);
-  console.log("⏭️ Skipped     :", skipped);
-  console.log("📁 Total scraped :", scrapedUrls.length);
+  console.log("Found total :", foundUrls.length);
+  console.log(" New URLs    :", newUrls.length);
+  console.log("Skipped     :", skipped);
+  console.log("Total scraped :", scrapedUrls.length);
 
   await browser.close();
 
