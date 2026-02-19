@@ -7,6 +7,7 @@ const ARTICLE_FILE = "articles.json";
 
 async function scrape() {
 
+  
   const urls = JSON.parse(fs.readFileSync(URL_FILE, "utf-8"));
 
   if (!urls.length) {

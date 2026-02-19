@@ -7,6 +7,7 @@ const NEW_FILE = "newURL.json";
 
 async function scrapeLinks() {
 
+  
   const browser = await puppeteer.launch({
     headless: "new",
     defaultViewport: null,
