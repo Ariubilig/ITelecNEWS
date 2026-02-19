@@ -2,8 +2,8 @@ import puppeteer from "puppeteer";
 import fs from "fs";
 
 
-const URL_FILE = "newURL.json";
-const ARTICLE_FILE = "articles.json";
+const URL_FILE = "JSON/newURL.json";
+const ARTICLE_FILE = "JSON/articles.json";
 
 async function scrape() {
 
