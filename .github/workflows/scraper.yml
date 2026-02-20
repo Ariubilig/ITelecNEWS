@@ -39,4 +39,4 @@ jobs:
             libasound2
 
       - name: Run scraper
-        run: node scrape/ALLscrape.js
+        run: node scrape/ALLsupabase.js
