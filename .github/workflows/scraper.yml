@@ -1,0 +1,42 @@
+name: Daily Scraper
+
+on:
+  schedule:
+    - cron: '0 3 * * *'    # runs every day at 03:00 UTC
+  workflow_dispatch:       # allows manual run from GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Puppeteer dependencies (Linux fix)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libx11-xcb1 \
+            libxcb-dri3-0 \
+            libdrm2 \
+            libgbm1 \
+            libxshmfence1 \
+            libasound2
+
+      - name: Run scraper
+        run: node scrape/ALLscrape.js

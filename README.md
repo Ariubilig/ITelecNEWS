@@ -1,4 +1,4 @@
-GitHub Actions (daily)
+GitHub Actions (daily 24h)
       ↓
 ALLscrape.js
       ↓
