@@ -111,8 +111,15 @@ async function scrapeAndInsert(browser, urls) {
 
 
 async function main() {
-  const browser = await puppeteer.launch({ headless: "new", defaultViewport: null });
-
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
+    ]
+  });
   const urls = await collectURLs(browser);
   await scrapeAndInsert(browser, urls);
 
