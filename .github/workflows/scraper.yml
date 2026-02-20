@@ -2,12 +2,16 @@ name: Daily Scraper
 
 on:
   schedule:
-    - cron: '0 3 * * *'    # runs every day at 03:00 UTC
-  workflow_dispatch:       # allows manual run from GitHub UI
+    - cron: '0 3 * * *'   # runs daily at 03:00 UTC
+  workflow_dispatch:       # allows manual run button
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Server
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -25,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Puppeteer dependencies (Linux fix)
+      - name: Install Puppeteer dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -36,7 +40,7 @@ jobs:
             libdrm2 \
             libgbm1 \
             libxshmfence1 \
-            libasound2
+            libasound2t64
 
       - name: Run scraper
         run: node scrape/ALLsupabase.js
