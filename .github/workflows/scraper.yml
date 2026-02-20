@@ -40,7 +40,7 @@ jobs:
             libdrm2 \
             libgbm1 \
             libxshmfence1 \
-            libasound2
+            libasound2t64
 
       - name: Run scraper
         run: node scrape/ALLsupabase.js
