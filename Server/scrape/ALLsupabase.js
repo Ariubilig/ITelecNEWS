@@ -111,6 +111,7 @@ async function scrapeAndInsert(browser, urls) {
 
 
 async function main() {
+
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -124,6 +125,7 @@ async function main() {
   await scrapeAndInsert(browser, urls);
 
   await browser.close();
+  
 }
 
 
