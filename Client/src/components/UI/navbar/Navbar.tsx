@@ -10,7 +10,6 @@ function Navbar() {
             </div>
             <div className="navbar-links">
                 <a href="/">Home</a>
-                <a href="/second">Second</a>
             </div>
         </div>
     )
