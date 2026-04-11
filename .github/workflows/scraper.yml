@@ -48,12 +48,20 @@ jobs:
       - name: Run scraper
         run: tsx scrape/Scrape.js
 
+      - name: Debug secrets
+        run: |
+          echo "URL length: ${#SUPABASE_URL}"
+          echo "KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
+          echo "URL starts with: ${SUPABASE_URL:0:20}"
+          echo "KEY starts with: ${SUPABASE_SERVICE_ROLE_KEY:0:10}"
+
       - name: Trigger AI processing
         run: |
           curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
             -H "Content-Type: application/json" \
-            --fail \
             --silent \
-            --show-error
+            --show-error \
+            --write-out "\nHTTP Status: %{http_code}\n"
+            # --fail removed temporarily so you can read the response body

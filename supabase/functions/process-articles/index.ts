@@ -9,12 +9,9 @@ Deno.serve(async (req) => {
 
   const { data: articles, error: fetchError } = await supabase
     .from("articles")
-    .select(`
-      id, title, body, url,
-      processed_articles ( id )
-    `)
-    .is("processed_articles.id", null)
-    .not("body", "is", null)
+    .select("id, title, body, url")
+    .eq("processed", false)
+    .not("body", "is", null);
 
   if (fetchError) {
     console.error("Fetch error:", fetchError);
@@ -48,12 +45,21 @@ Deno.serve(async (req) => {
 
       if (upsertError) throw upsertError;
 
+      // Mark article as processed
+      const { error: updateError } = await supabase
+        .from("articles")
+        .update({ processed: true })
+        .eq("id", article.id);
+
+      if (updateError) throw updateError;
+
       results.success++;
       console.log(`✅ Processed: ${article.title}`);
 
     } catch (err) {
       results.failed++;
       console.error(`❌ Failed article ${article.id}:`, err.message);
+      // processed stays false — will retry next run
     }
   }
 
