@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer";
-import supabase from "../supabase/supabaseClient.js";
+import supabase from "../lib/supabase.ts";
 
 
 // Step 1: Collect all URLs from /category/7

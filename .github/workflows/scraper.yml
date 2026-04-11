@@ -2,8 +2,8 @@ name: Daily Scraper
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # runs daily at 03:00 UTC
-  workflow_dispatch:       # allows manual run button
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
   scrape:
@@ -44,3 +44,11 @@ jobs:
 
       - name: Run scraper
         run: node scrape/Scrape.js
+
+      - name: Trigger AI processing        # ← only thing added
+        run: |
+          curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            --fail \
+            --silent \
+            --show-error
