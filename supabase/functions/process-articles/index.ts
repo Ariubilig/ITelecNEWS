@@ -1,5 +1,4 @@
-import { supabase } from "https://esm.sh/@supabase/supabase-js@2";
-
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -7,13 +6,7 @@ const supabase = createClient(
 );
 
 Deno.serve(async (req) => {
-  // Allow manual trigger via POST, or cron trigger
-  const authHeader = req.headers.get("Authorization");
-  if (authHeader !== `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
 
-  // 1. Fetch articles that have no processed_articles row yet
   const { data: articles, error: fetchError } = await supabase
     .from("articles")
     .select(`
@@ -22,7 +15,6 @@ Deno.serve(async (req) => {
     `)
     .is("processed_articles.id", null)
     .not("body", "is", null)
-    // no .limit() — process everything that came in today
 
   if (fetchError) {
     console.error("Fetch error:", fetchError);
@@ -40,7 +32,7 @@ Deno.serve(async (req) => {
 
   for (const article of articles) {
     try {
-      const aiOutput = await processWithClaude(article.title, article.body);
+      const aiOutput = await processWithAI(article.title, article.body);
 
       const { error: upsertError } = await supabase
         .from("processed_articles")
@@ -68,32 +60,34 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify(results), { status: 200 });
 });
 
-// ─── Claude call ────────────────────────────────────────────────────────────
-
-async function processWithClaude(title: string, body: string) {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
-    },
-    body: JSON.stringify({
-      model: "meta-llama/llama-3.3-8b-instruct:free", // free tier
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: `TITLE: ${title}\n\nBODY:\n${body}` },
-      ],
-    }),
-  });
+async function processWithAI(title: string, body: string) {
+  let response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-120b:free",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `TITLE: ${title}\n\nBODY:\n${body}` },
+        ],
+      }),
+    });
+  } catch (err) {
+    console.error("Fetch failed:", err.message);
+    throw err;
+  }
 
   const data = await response.json();
-  const raw = data.choices[0].message.content; // OpenRouter uses OpenAI format
-
-  // Strip markdown code fences if Claude wraps in ```json
+  console.log("OpenRouter response:", JSON.stringify(data));
+  const raw = data.choices[0].message.content;
   const cleaned = raw.replace(/```json\n?|```/g, "").trim();
   const parsed = JSON.parse(cleaned);
 
-  // Validate all fields came back
   const required = ["teen_headline", "teen_summary", "teen_body", "mood"];
   for (const field of required) {
     if (!parsed[field]) throw new Error(`Missing field: ${field}`);
@@ -101,8 +95,6 @@ async function processWithClaude(title: string, body: string) {
 
   return parsed;
 }
-
-// ─── Prompt ─────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `
 You are a writer for a news site aimed at teenagers aged 13–18.
