@@ -53,6 +53,7 @@ jobs:
           curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
             --fail \
             --silent \
             --show-error
