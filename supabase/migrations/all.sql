@@ -9,6 +9,7 @@ CREATE TABLE public.articles (
   image text,
   body text,
   created_at timestamp with time zone DEFAULT now(),
+  processed boolean NOT NULL DEFAULT false,
   CONSTRAINT articles_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.processed_articles (
