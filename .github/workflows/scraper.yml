@@ -45,15 +45,9 @@ jobs:
             libxshmfence1 \
             libasound2t64
 
+            
       - name: Run scraper
-        run: tsx scrape/Scrape.js
-
-      - name: Debug secrets
-        run: |
-          echo "URL length: ${#SUPABASE_URL}"
-          echo "KEY length: ${#SUPABASE_SERVICE_ROLE_KEY}"
-          echo "URL starts with: ${SUPABASE_URL:0:20}"
-          echo "KEY starts with: ${SUPABASE_SERVICE_ROLE_KEY:0:10}"
+        run: tsx scrape/Scrape.ts
 
       - name: Trigger AI processing
         run: |
