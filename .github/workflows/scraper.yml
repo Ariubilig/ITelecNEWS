@@ -57,5 +57,5 @@ jobs:
             -H "Content-Type: application/json" \
             --silent \
             --show-error \
+            --fail \
             --write-out "\nHTTP Status: %{http_code}\n"
-            # --fail removed temporarily so you can read the response body

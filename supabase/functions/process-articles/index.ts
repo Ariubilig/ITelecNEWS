@@ -77,20 +77,22 @@ async function processWithAI(title: string, body: string) {
       },
       body: JSON.stringify({
         model: "openai/gpt-oss-120b:free",
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `TITLE: ${title}\n\nBODY:\n${body}` },
         ],
       }),
     });
-  } catch (err) {
-    console.error("Fetch failed:", err.message);
+  } catch (err: unknown) {
+    console.error("Fetch failed:", (err as Error).message);
     throw err;
   }
 
   const data = await response.json();
   console.log("OpenRouter response:", JSON.stringify(data));
-  const raw = data.choices[0].message.content;
+  const raw: string = data.choices[0].message.content;
+  // response_format guarantees valid JSON, but strip fences as a safety net
   const cleaned = raw.replace(/```json\n?|```/g, "").trim();
   const parsed = JSON.parse(cleaned);
 

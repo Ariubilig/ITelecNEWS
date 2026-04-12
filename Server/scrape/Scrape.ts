@@ -1,10 +1,18 @@
-import puppeteer from "puppeteer";
+import puppeteer, { type Browser } from "puppeteer";
 import supabase from "../lib/supabase.ts";
+
+
+interface Article {
+  title: string;
+  date:  string;
+  image: string;
+  body:  string;
+}
 
 
 // Step 1: Collect all URLs from /category/7
 
-async function collectURLs(browser) {
+async function collectURLs(browser: Browser): Promise<string[]> {
 
   const page = await browser.newPage();
 
@@ -33,7 +41,7 @@ async function collectURLs(browser) {
 
 // Step 2: Scrape each URL and insert into Supabase (skip if duplicate ofc its DB skip own dumbas)
 
-async function scrapeAndInsert(browser, urls) {
+async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> {
     
   const page = await browser.newPage();
 
@@ -47,7 +55,7 @@ async function scrapeAndInsert(browser, urls) {
 
       await page.goto(url, { waitUntil: "networkidle2" });
 
-      const article = await page.evaluate(() => {
+      const article: Article | null = await page.evaluate(() => {
         const body = document.querySelector(".article-body.no-wide-image");
         if (!body) return null;
 
@@ -63,7 +71,7 @@ async function scrapeAndInsert(browser, urls) {
             ?.getAttribute("content") || "";
 
         let sectionCount = 0;
-        const htmlParts  = [];
+        const htmlParts: string[] = [];
 
         for (const el of body.children) {
           if (el.tagName === "P" && el.querySelector("b")) sectionCount++;
@@ -92,9 +100,9 @@ async function scrapeAndInsert(browser, urls) {
         console.log("✅ Inserted:", article.title);
       }
 
-    } catch (err) {
+    } catch (err: unknown) {
       failed++;
-      console.log("❌ Failed:", url, "|", err.message);
+      console.log("❌ Failed:", url, "|", (err as Error).message);
     }
   }
 
@@ -110,7 +118,7 @@ async function scrapeAndInsert(browser, urls) {
 }
 
 
-async function main() {
+async function main(): Promise<void> {
 
   const browser = await puppeteer.launch({
     headless: "new",
