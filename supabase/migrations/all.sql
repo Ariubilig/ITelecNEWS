@@ -20,10 +20,7 @@ CREATE TABLE public.processed_articles (
   teen_body text,
   mood text,
   status text NOT NULL DEFAULT 'draft'::text CHECK (status = ANY (ARRAY['draft'::text, 'approved'::text, 'published'::text, 'rejected'::text])),
-  edited_by text,
-  ai_processed_at timestamp with time zone,
-  published_at timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now(),
+  processed_at timestamp with time zone,
   CONSTRAINT processed_articles_pkey PRIMARY KEY (id),
   CONSTRAINT processed_articles_article_id_fkey FOREIGN KEY (article_id) REFERENCES public.articles(id)
 );
