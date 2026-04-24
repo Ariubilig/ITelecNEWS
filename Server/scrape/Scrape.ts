@@ -1,5 +1,5 @@
 import puppeteer, { type Browser } from "puppeteer";
-import supabase from "../lib/supabase.ts";
+import supabase from "../lib/supabase.js";
 
 
 interface Article {
@@ -10,7 +10,7 @@ interface Article {
 }
 
 
-// Step 1: Collect all URLs from /category/7
+// 1: Collect all URLs from /category/7
 
 async function collectURLs(browser: Browser): Promise<string[]> {
 
@@ -39,7 +39,7 @@ async function collectURLs(browser: Browser): Promise<string[]> {
 }
 
 
-// Step 2: Scrape each URL and insert into Supabase (skip if duplicate ofc its DB skip own dumbas)
+// 2: Scrape each URL and insert into Supabase (skip if duplicate ofc its DB skip own dumbas)
 
 async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> {
     

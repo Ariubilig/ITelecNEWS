@@ -47,7 +47,7 @@ jobs:
 
             
       - name: Run scraper
-        run: tsx scrape/Scrape.ts
+        run: tsx scrape/scrape.ts
 
       - name: Trigger AI processing
         run: |

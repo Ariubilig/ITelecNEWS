@@ -6,9 +6,9 @@ const SCRAPED_FILE = "json/scrapedURL.json";
 const NEW_FILE     = "json/newURL.json";
 const ARTICLE_FILE = "json/articles.json";
 
-// Step 1: Collect new URLs
+//  1: Collect new URLs
 
-async function collectURLs(browser) {
+async function collectURLs(browser) { 
 
   const page = await browser.newPage();
 
@@ -58,7 +58,7 @@ async function collectURLs(browser) {
 }
 
 
-// Step 2: Scrape articles from new URLs
+// 2: Scrape articles from new URLs
 
 async function scrapeArticles(browser, urls) {
 
