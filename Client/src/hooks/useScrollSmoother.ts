@@ -35,12 +35,15 @@ import { ScrollSmoother } from "gsap/ScrollSmoother";
 
 const isTouchDevice = () => window.matchMedia("(pointer: coarse)").matches;
 
-export const useScrollSmoother = (wrapperRef: React.RefObject<HTMLElement | null>) => {
+export const useScrollSmoother = (
+  wrapperRef: React.RefObject<HTMLElement | null>,
+  ready = true,
+) => {
 
   const location = useLocation();
 
   useEffect(() => {
-    if (!wrapperRef.current) return;
+    if (!ready || !wrapperRef.current) return;
 
     gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -54,7 +57,7 @@ export const useScrollSmoother = (wrapperRef: React.RefObject<HTMLElement | null
     const smoother = ScrollSmoother.create({
       wrapper: wrapperRef.current,
       content,
-      smooth: 1.5,
+      smooth: 1,
       effects: true,
       normalizeScroll: true,
       ignoreMobileResize: true,
@@ -72,7 +75,7 @@ export const useScrollSmoother = (wrapperRef: React.RefObject<HTMLElement | null
         wrapperRef.current.style.overflow = "";
       }
     };
-  }, []);
+  }, [ready]);
 
   useEffect(() => {
     if (isTouchDevice()) return;

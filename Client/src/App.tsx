@@ -17,7 +17,7 @@ function App() {
   //////////////////////////////////////////////////
   const fontsReady = useFontsReady();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useScrollSmoother(wrapperRef);
+  useScrollSmoother(wrapperRef, fontsReady);
   //////////////////////////////////////////////////
 
   if (!fontsReady) {
@@ -25,11 +25,11 @@ function App() {
   }
 
   return (
-
+    <>
+    <ScrollBar />
     <div id="smooth-wrapper" ref={wrapperRef}>
       <div id="smooth-content">
 
-        <ScrollBar />
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
@@ -40,7 +40,7 @@ function App() {
 
       </div>
     </div>
-
+    </>
   );
 }
 

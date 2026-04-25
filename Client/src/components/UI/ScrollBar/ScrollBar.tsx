@@ -1,11 +1,16 @@
-import { useEffect, useRef, useCallback } from "react";
 import "./ScrollBar.css";
+import { useEffect, useRef, useCallback } from "react";
+import { ScrollSmoother } from "gsap/ScrollSmoother";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
 
 interface ScrollBar {
   thumbHeight?: number;
 }
 
 export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
+
+
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -17,28 +22,68 @@ export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
     return trackRef.current.clientHeight - thumbRef.current.clientHeight;
   }, []);
 
+  /** Total scrollable distance (works with or without ScrollSmoother) */
   const getMaxScroll = useCallback(() => {
+    const smoother = ScrollSmoother.get();
+    if (smoother) {
+      // ScrollSmoother.content() gives us the transformed content element
+      const content = smoother.content() as HTMLElement;
+      return content.scrollHeight - window.innerHeight;
+    }
     return document.documentElement.scrollHeight - window.innerHeight;
+  }, []);
+
+  /** Current scroll position (works with or without ScrollSmoother) */
+  const getScrollY = useCallback(() => {
+    const smoother = ScrollSmoother.get();
+    if (smoother) {
+      return smoother.scrollTop();
+    }
+    return window.scrollY;
   }, []);
 
   const updateThumb = useCallback(() => {
     if (!thumbRef.current) return;
-    const pct = window.scrollY / getMaxScroll();
+    const max = getMaxScroll();
+    if (max <= 0) return;
+    const pct = getScrollY() / max;
     thumbRef.current.style.top = `${pct * getTrackHeight()}px`;
-  }, [getMaxScroll, getTrackHeight]);
+  }, [getMaxScroll, getScrollY, getTrackHeight]);
 
   const scrollToPercent = useCallback(
     (pct: number) => {
       const clamped = Math.max(0, Math.min(1, pct));
-      window.scrollTo({ top: clamped * getMaxScroll(), behavior: "smooth" });
+      const target = clamped * getMaxScroll();
+      const smoother = ScrollSmoother.get();
+      if (smoother) {
+        smoother.scrollTo(target, true);
+      } else {
+        window.scrollTo({ top: target, behavior: "smooth" });
+      }
     },
     [getMaxScroll]
   );
 
   useEffect(() => {
-    window.addEventListener("scroll", updateThumb, { passive: true });
+    // Use ScrollTrigger's update event — fires on every tick regardless of
+    // whether native scroll or ScrollSmoother is driving the position.
+    const onUpdate = () => updateThumb();
+
+    ScrollTrigger.addEventListener("refresh", onUpdate);
+    // Also listen to native scroll as fallback (touch devices without smoother)
+    window.addEventListener("scroll", onUpdate, { passive: true });
+
+    // Poll via GSAP ticker for smoother-driven scrolls
+    const tickHandler = () => updateThumb();
+    import("gsap").then(({ gsap }) => gsap.ticker.add(tickHandler));
+
     updateThumb();
-    return () => window.removeEventListener("scroll", updateThumb);
+
+    return () => {
+      ScrollTrigger.removeEventListener("refresh", onUpdate);
+      window.removeEventListener("scroll", onUpdate);
+      import("gsap").then(({ gsap }) => gsap.ticker.remove(tickHandler));
+    };
   }, [updateThumb]);
 
   useEffect(() => {
@@ -94,4 +139,6 @@ export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
       />
     </div>
   );
+
+  
 }
