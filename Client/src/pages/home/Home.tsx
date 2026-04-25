@@ -1,7 +1,9 @@
+import ThemeSwitcher from "../../components/ui/ThemeSwitcher/ThemeSwitcher"
 
 const Home = () => {
   return (
     <>
+    <ThemeSwitcher />
     <div>home</div>
     <div>home</div>
     <div>home</div>

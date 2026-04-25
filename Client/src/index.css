@@ -1,0 +1,42 @@
+:root {
+  --color-bg: #151515;
+  
+  --textDefault: #FFFFFF;
+  --textL: #F2F2F2;
+  --textM: #BFBFBF;
+  --textS: #8C8C8C;
+  
+  --btn-bg: #FFFFFF;
+  --btn-text: #151515;
+  --btn-hover: #F2F2F2;
+  
+  --link-color: #FFFFFF;
+  --link-hover: #F2F2F2;
+  
+  --divider: #2C2C2C;
+}
+[data-theme="light"] {
+  --color-bg: hsl(0, 0%, 100%);
+
+  --textDefault: hsl(0, 0%, 10%);
+  --textL: hsl(0, 0%, 20%);
+  --textM: hsl(0, 0%, 40%);
+  --textS: hsl(0, 0%, 55%);
+
+  --btn-bg: hsl(0, 0%, 10%);
+  --btn-text: hsl(0, 0%, 100%);
+  --btn-hover: hsl(0, 0%, 20%);
+
+  --link-color: hsl(0, 0%, 10%);
+  --link-hover: hsl(0, 0%, 30%);
+
+  --divider: hsl(0, 0%, 85%);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--textL);
+
+  transition: all 0.5s ease;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}

@@ -5,6 +5,7 @@ import { useRef } from "react";
 import Home from "./pages/home/Home";
 import Reading from './pages/reading/Reading';
 import Navbar from "./components/ui/navbar/Navbar";
+import ScrollBar from "./components/ui/ScrollBar/ScrollBar";
 
 import { useScrollSmoother } from "./hooks/useScrollSmoother";
 import { useFontsReady } from "./hooks/useFontsReady";
@@ -28,7 +29,7 @@ function App() {
     <div id="smooth-wrapper" ref={wrapperRef}>
       <div id="smooth-content">
 
-
+        <ScrollBar />
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
