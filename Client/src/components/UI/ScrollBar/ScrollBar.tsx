@@ -1,102 +1,85 @@
 import "./ScrollBar.css";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
+import { gsap } from "gsap";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 
-interface ScrollBar {
+interface ScrollBarProps {
   thumbHeight?: number;
 }
 
-export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
+// ─── Scroll helpers ──────────────────────────────────────────────────────────
+// Kept outside the component: these are pure, stateless, and never need
+// to be recreated. Placing them in the module avoids useCallback overhead
+// and keeps the component body focused on React lifecycle logic.
 
+function getSmoother() {
+  return ScrollSmoother.get();
+}
 
+function getScrollY(): number {
+  return getSmoother()?.scrollTop() ?? window.scrollY;
+}
+
+function getMaxScroll(): number {
+  const smoother = getSmoother();
+  if (smoother) {
+    return (smoother.content() as HTMLElement).scrollHeight - window.innerHeight;
+  }
+  return document.documentElement.scrollHeight - window.innerHeight;
+}
+
+function scrollToPercent(pct: number, maxScroll: number): void {
+  const target = Math.max(0, Math.min(1, pct)) * maxScroll;
+  getSmoother()?.scrollTo(target, true) ?? window.scrollTo({ top: target, behavior: "smooth" });
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function ScrollBar({ thumbHeight = 40 }: ScrollBarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const dragStartY = useRef(0);
-  const dragStartTop = useRef(0);
 
-  const getTrackHeight = useCallback(() => {
-    if (!trackRef.current || !thumbRef.current) return 0;
-    return trackRef.current.clientHeight - thumbRef.current.clientHeight;
-  }, []);
+  // Drag state kept in a single ref object — avoids three separate refs and
+  // makes the shape of the drag state explicit at a glance.
+  const drag = useRef({ active: false, startY: 0, startTop: 0 });
 
-  /** Total scrollable distance (works with or without ScrollSmoother) */
-  const getMaxScroll = useCallback(() => {
-    const smoother = ScrollSmoother.get();
-    if (smoother) {
-      // ScrollSmoother.content() gives us the transformed content element
-      const content = smoother.content() as HTMLElement;
-      return content.scrollHeight - window.innerHeight;
-    }
-    return document.documentElement.scrollHeight - window.innerHeight;
-  }, []);
-
-  /** Current scroll position (works with or without ScrollSmoother) */
-  const getScrollY = useCallback(() => {
-    const smoother = ScrollSmoother.get();
-    if (smoother) {
-      return smoother.scrollTop();
-    }
-    return window.scrollY;
-  }, []);
-
-  const updateThumb = useCallback(() => {
-    if (!thumbRef.current) return;
-    const max = getMaxScroll();
-    if (max <= 0) return;
-    const pct = getScrollY() / max;
-    thumbRef.current.style.top = `${pct * getTrackHeight()}px`;
-  }, [getMaxScroll, getScrollY, getTrackHeight]);
-
-  const scrollToPercent = useCallback(
-    (pct: number) => {
-      const clamped = Math.max(0, Math.min(1, pct));
-      const target = clamped * getMaxScroll();
-      const smoother = ScrollSmoother.get();
-      if (smoother) {
-        smoother.scrollTo(target, true);
-      } else {
-        window.scrollTo({ top: target, behavior: "smooth" });
-      }
-    },
-    [getMaxScroll]
-  );
+  // ── Thumb position sync ──────────────────────────────────────────────────
 
   useEffect(() => {
-    // Use ScrollTrigger's update event — fires on every tick regardless of
-    // whether native scroll or ScrollSmoother is driving the position.
-    const onUpdate = () => updateThumb();
+    const thumb = thumbRef.current;
+    const track = trackRef.current;
+    if (!thumb || !track) return;
 
-    ScrollTrigger.addEventListener("refresh", onUpdate);
-    // Also listen to native scroll as fallback (touch devices without smoother)
-    window.addEventListener("scroll", onUpdate, { passive: true });
+    function updateThumb() {
+      const max = getMaxScroll();
+      if (max <= 0) return;
+      const trackRange = track!.clientHeight - thumb!.clientHeight;
+      thumb!.style.top = `${(getScrollY() / max) * trackRange}px`;
+    }
 
-    // Poll via GSAP ticker for smoother-driven scrolls
-    const tickHandler = () => updateThumb();
-    import("gsap").then(({ gsap }) => gsap.ticker.add(tickHandler));
+    // A single GSAP ticker covers both smoother-driven and native scroll
+    // updates at the display frame rate — no need for a redundant native
+    // "scroll" listener or a ScrollTrigger "refresh" listener alongside it.
+    gsap.ticker.add(updateThumb);
+    updateThumb(); // paint immediately on mount
 
-    updateThumb();
+    return () => gsap.ticker.remove(updateThumb);
+  }, [thumbHeight]);
 
-    return () => {
-      ScrollTrigger.removeEventListener("refresh", onUpdate);
-      window.removeEventListener("scroll", onUpdate);
-      import("gsap").then(({ gsap }) => gsap.ticker.remove(tickHandler));
-    };
-  }, [updateThumb]);
+  // ── Drag-to-scroll ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
-      const delta = e.clientY - dragStartY.current;
-      const pct = (dragStartTop.current + delta) / getTrackHeight();
-      scrollToPercent(pct);
-    };
+    function onMouseMove(e: MouseEvent) {
+      if (!drag.current.active || !trackRef.current || !thumbRef.current) return;
+      const trackRange = trackRef.current.clientHeight - thumbRef.current.clientHeight;
+      const delta = e.clientY - drag.current.startY;
+      scrollToPercent((drag.current.startTop + delta) / trackRange, getMaxScroll());
+    }
 
-    const onMouseUp = () => {
-      isDragging.current = false;
-    };
+    function onMouseUp() {
+      drag.current.active = false;
+    }
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
@@ -104,22 +87,28 @@ export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
-  }, [getTrackHeight, scrollToPercent]);
+  }, []); // no deps — reads live values through refs at event time
 
-  const onThumbMouseDown = (e: React.MouseEvent) => {
+  // ── Event handlers ───────────────────────────────────────────────────────
+
+  function onThumbMouseDown(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    isDragging.current = true;
-    dragStartY.current = e.clientY;
-    dragStartTop.current = parseFloat(thumbRef.current?.style.top ?? "0") || 0;
-  };
+    drag.current = {
+      active: true,
+      startY: e.clientY,
+      startTop: parseFloat(thumbRef.current?.style.top ?? "0") || 0,
+    };
+  }
 
-  const onTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === thumbRef.current) return;
-    const rect = trackRef.current!.getBoundingClientRect();
-    const pct = (e.clientY - rect.top - thumbHeight / 2) / getTrackHeight();
-    scrollToPercent(pct);
-  };
+  function onTrackClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target === thumbRef.current || !trackRef.current) return;
+    const trackRange = trackRef.current.clientHeight - thumbHeight;
+    const pct = (e.clientY - trackRef.current.getBoundingClientRect().top - thumbHeight / 2) / trackRange;
+    scrollToPercent(pct, getMaxScroll());
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -139,6 +128,4 @@ export default function ScrollBar({ thumbHeight = 40 }: ScrollBar) {
       />
     </div>
   );
-
-  
 }
