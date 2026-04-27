@@ -13,7 +13,8 @@
   --link-color: #FFFFFF;
   --link-hover: #F2F2F2;
   
-  --divider: #2C2C2C;
+  --divider: #ffffff;
+  --dividerBg: #ffffff1f;
 }
 [data-theme="light"] {
   --color-bg: hsl(0, 0%, 100%);
@@ -30,7 +31,9 @@
   --link-color: hsl(0, 0%, 10%);
   --link-hover: hsl(0, 0%, 30%);
 
-  --divider: hsl(0, 0%, 85%);
+  --divider: hsl(0, 0%, 0%);
+  --dividerBg: #bdbdbd;
+
 }
 
 body {

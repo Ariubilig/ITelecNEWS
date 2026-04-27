@@ -24,8 +24,11 @@ function App() {
     return <div>Fonts loading…</div>;
   }
 
+
   return (
     <>
+
+
     <ScrollBar />
     <div id="smooth-wrapper" ref={wrapperRef}>
       <div id="smooth-content">
@@ -40,6 +43,8 @@ function App() {
 
       </div>
     </div>
+
+    
     </>
   );
 }

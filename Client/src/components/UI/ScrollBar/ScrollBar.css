@@ -6,6 +6,7 @@ html {
   display: none;
 }
 
+
 /* Wrapper — 100px wide, 50vh tall, fixed centered right */
 .scrollbar {
   position: fixed;
@@ -24,7 +25,7 @@ html {
   bottom: 0;
   left: 49px;
   width: 2px;
-  background-color: rgba(0, 0, 0, 0.12);
+  background-color: var(--dividerBg);
 }
 
 /* Thumb — starts at 2px, expands on hover */
@@ -33,7 +34,7 @@ html {
   left: 49px;
   width: 2px;
   height: 40px;
-  background-color: var(--scrollbar-color, #000);
+  background-color: var(--divider);
   border-radius: 1px;
   cursor: grab;
   top: 0;
@@ -54,13 +55,10 @@ html {
   border-radius: 5px;
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .scrollbar__track {
-    background-color: rgba(255, 255, 255, 0.12);
-  }
 
-  .scrollbar__thumb {
-    --scrollbar-color: #fff;
+/* Hide scrollbar on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .scrollbar {
+    display: none;
   }
 }

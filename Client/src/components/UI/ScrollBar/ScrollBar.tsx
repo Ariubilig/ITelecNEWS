@@ -3,93 +3,64 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
 
+const getSmoother = () => ScrollSmoother.get();
+const getScrollY = () => getSmoother()?.scrollTop() ?? window.scrollY;
+const getMaxScroll = () => {
+  const s = getSmoother();
+  return s
+    ? (s.content() as HTMLElement).scrollHeight - window.innerHeight
+    : document.documentElement.scrollHeight - window.innerHeight;
+};
+const scrollTo = (pct: number, max: number) => {
+  const top = Math.max(0, Math.min(1, pct)) * max;
+  getSmoother()?.scrollTo(top, true) ?? window.scrollTo({ top, behavior: "smooth" });
+};
 
-interface ScrollBarProps {
-  thumbHeight?: number;
-}
-
-// ─── Scroll helpers ──────────────────────────────────────────────────────────
-// Kept outside the component: these are pure, stateless, and never need
-// to be recreated. Placing them in the module avoids useCallback overhead
-// and keeps the component body focused on React lifecycle logic.
-
-function getSmoother() {
-  return ScrollSmoother.get();
-}
-
-function getScrollY(): number {
-  return getSmoother()?.scrollTop() ?? window.scrollY;
-}
-
-function getMaxScroll(): number {
-  const smoother = getSmoother();
-  if (smoother) {
-    return (smoother.content() as HTMLElement).scrollHeight - window.innerHeight;
-  }
-  return document.documentElement.scrollHeight - window.innerHeight;
-}
-
-function scrollToPercent(pct: number, maxScroll: number): void {
-  const target = Math.max(0, Math.min(1, pct)) * maxScroll;
-  getSmoother()?.scrollTo(target, true) ?? window.scrollTo({ top: target, behavior: "smooth" });
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
-export default function ScrollBar({ thumbHeight = 40 }: ScrollBarProps) {
+export default function ScrollBar() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
-
-  // Drag state kept in a single ref object — avoids three separate refs and
-  // makes the shape of the drag state explicit at a glance.
   const drag = useRef({ active: false, startY: 0, startTop: 0 });
 
-  // ── Thumb position sync ──────────────────────────────────────────────────
-
   useEffect(() => {
-    const thumb = thumbRef.current;
-    const track = trackRef.current;
-    if (!thumb || !track) return;
+    const root = rootRef.current!;
+    const track = trackRef.current!;
+    const thumb = thumbRef.current!;
 
-    function updateThumb() {
+    function update() {
       const max = getMaxScroll();
-      if (max <= 0) return;
-      const trackRange = track!.clientHeight - thumb!.clientHeight;
-      thumb!.style.top = `${(getScrollY() / max) * trackRange}px`;
+      const visible = max > 0;
+      root.style.opacity = visible ? "1" : "0";
+      root.style.pointerEvents = visible ? "auto" : "none";
+      if (!visible) return;
+
+      const trackH = track.clientHeight;
+      const thumbH = Math.max(20, (window.innerHeight / (max + window.innerHeight)) * trackH);
+      thumb.style.height = `${thumbH}px`;
+      thumb.style.top = `${(getScrollY() / max) * (trackH - thumbH)}px`;
     }
 
-    // A single GSAP ticker covers both smoother-driven and native scroll
-    // updates at the display frame rate — no need for a redundant native
-    // "scroll" listener or a ScrollTrigger "refresh" listener alongside it.
-    gsap.ticker.add(updateThumb);
-    updateThumb(); // paint immediately on mount
-
-    return () => gsap.ticker.remove(updateThumb);
-  }, [thumbHeight]);
-
-  // ── Drag-to-scroll ───────────────────────────────────────────────────────
+    gsap.ticker.add(update);
+    update();
+    return () => gsap.ticker.remove(update);
+  }, []);
 
   useEffect(() => {
-    function onMouseMove(e: MouseEvent) {
-      if (!drag.current.active || !trackRef.current || !thumbRef.current) return;
-      const trackRange = trackRef.current.clientHeight - thumbRef.current.clientHeight;
-      const delta = e.clientY - drag.current.startY;
-      scrollToPercent((drag.current.startTop + delta) / trackRange, getMaxScroll());
-    }
-
-    function onMouseUp() {
-      drag.current.active = false;
-    }
-
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    const onMove = (e: MouseEvent) => {
+      if (!drag.current.active) return;
+      const trackRange = trackRef.current!.clientHeight - thumbRef.current!.clientHeight;
+      const pct = (drag.current.startTop + e.clientY - drag.current.startY) / trackRange;
+      scrollTo(pct, getMaxScroll());
     };
-  }, []); // no deps — reads live values through refs at event time
+    const onUp = () => { drag.current.active = false; };
 
-  // ── Event handlers ───────────────────────────────────────────────────────
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   function onThumbMouseDown(e: React.MouseEvent) {
     e.preventDefault();
@@ -102,30 +73,19 @@ export default function ScrollBar({ thumbHeight = 40 }: ScrollBarProps) {
   }
 
   function onTrackClick(e: React.MouseEvent<HTMLDivElement>) {
-    if (e.target === thumbRef.current || !trackRef.current) return;
-    const trackRange = trackRef.current.clientHeight - thumbHeight;
-    const pct = (e.clientY - trackRef.current.getBoundingClientRect().top - thumbHeight / 2) / trackRange;
-    scrollToPercent(pct, getMaxScroll());
+    if (e.target === thumbRef.current || !trackRef.current || !thumbRef.current) return;
+    const thumbH = thumbRef.current.clientHeight;
+    const trackRange = trackRef.current.clientHeight - thumbH;
+    const pct = (e.clientY - trackRef.current.getBoundingClientRect().top - thumbH / 2) / trackRange;
+    scrollTo(pct, getMaxScroll());
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div
-      className="scrollbar"
-      onClick={onTrackClick}
-      role="scrollbar"
-      aria-orientation="vertical"
-      aria-valuemin={0}
-      aria-valuemax={100}
+    <div ref={rootRef} className="scrollbar" onClick={onTrackClick}
+      role="scrollbar" aria-orientation="vertical" aria-valuemin={0} aria-valuemax={100}
     >
       <div ref={trackRef} className="scrollbar__track" />
-      <div
-        ref={thumbRef}
-        className="scrollbar__thumb"
-        style={{ height: thumbHeight }}
-        onMouseDown={onThumbMouseDown}
-      />
+      <div ref={thumbRef} className="scrollbar__thumb" onMouseDown={onThumbMouseDown} />
     </div>
   );
 }
