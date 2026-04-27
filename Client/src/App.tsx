@@ -20,9 +20,9 @@ function App() {
   useScrollSmoother(wrapperRef, fontsReady);
   //////////////////////////////////////////////////
 
-  if (!fontsReady) {
-    return <div>Fonts loading…</div>;
-  }
+  // if (!fontsReady) {
+  //   return <div>Fonts loading…</div>;
+  // }
 
 
   return (
