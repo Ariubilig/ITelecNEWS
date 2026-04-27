@@ -1,23 +1,20 @@
 import './Navbar.css'
 
-
 function Navbar() {
-    
-
     return (
-        <div className="navbar">
-
-            <div className="navbar-logo">
-                <h1>ITelecNEWS</h1>
+        <nav className="navbar">
+            <div className="navbar-brand">
+                <img
+                    src="/logo.png"
+                    alt="Unwrite logo"
+                    className="navbar-logo"
+                    width={18}
+                    height={18}
+                />
+                <span className="navbar-text">UNWRITE</span>
             </div>
-
-            <div className="navbar-links">
-                <a href="/">Home</a>
-            </div>
-            
-        </div>
+        </nav>
     )
 }
-
 
 export default Navbar
