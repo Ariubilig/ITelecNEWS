@@ -36,7 +36,7 @@ function App() {
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/Reading" element={<Reading />} />
+          <Route path="/article/:id" element={<Reading />} />
           {/* <Route path="*" element={<NotFound />} /> */}
         </Routes>
 
