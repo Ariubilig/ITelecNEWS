@@ -17,29 +17,28 @@
   --dividerBg: #ffffff1f;
 }
 [data-theme="light"] {
-  --color-bg: hsl(0, 0%, 100%);
-
-  --textDefault: hsl(0, 0%, 10%);
-  --textL: hsl(0, 0%, 20%);
-  --textM: hsl(0, 0%, 40%);
-  --textS: hsl(0, 0%, 55%);
-
-  --btn-bg: hsl(0, 0%, 10%);
-  --btn-text: hsl(0, 0%, 100%);
-  --btn-hover: hsl(0, 0%, 20%);
-
-  --link-color: hsl(0, 0%, 10%);
-  --link-hover: hsl(0, 0%, 30%);
-
-  --divider: hsl(0, 0%, 0%);
-  --dividerBg: #bdbdbd;
-
+  --color-bg: #FFFFFF;
+  
+  --textDefault: #151515;
+  --textL: #2C2C2C;
+  --textM: #595959;
+  --textS: #8C8C8C;
+  
+  --btn-bg: #151515;
+  --btn-text: #FFFFFF;
+  --btn-hover: #2C2C2C;
+  
+  --link-color: #151515;
+  --link-hover: #2C2C2C;
+  
+  --divider: #151515;
+  --dividerBg: #1515151f;
 }
 
 body {
   background: var(--color-bg);
   color: var(--textL);
 
-  transition: all 0.5s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
