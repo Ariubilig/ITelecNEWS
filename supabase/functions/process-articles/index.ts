@@ -1,11 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
+
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
 Deno.serve(async (req) => {
+
 
   const { data: articles, error: fetchError } = await supabase
     .from("articles")
@@ -27,47 +29,50 @@ Deno.serve(async (req) => {
 
   const results = { success: 0, failed: 0 };
 
-  for (const article of articles) {
-    try {
-      const aiOutput = await processWithAI(article.title, article.body);
+  const settled = await Promise.allSettled(
+    articles.map((article) => processArticle(article))
+  );
 
-      const { error: upsertError } = await supabase
-        .from("processed_articles")
-        .upsert({
-          article_id:      article.id,
-          teen_headline:   aiOutput.teen_headline,
-          teen_summary:    aiOutput.teen_summary,
-          teen_body:       aiOutput.teen_body,
-          mood:            aiOutput.mood,
-          status:          "draft",
-          ai_processed_at: new Date().toISOString(),
-        }, { onConflict: "article_id" });
-
-      if (upsertError) throw upsertError;
-
-      // Mark article as processed
-      const { error: updateError } = await supabase
-        .from("articles")
-        .update({ processed: true })
-        .eq("id", article.id);
-
-      if (updateError) throw updateError;
-
-      results.success++;
-      console.log(`✅ Processed: ${article.title}`);
-
-    } catch (err) {
+  for (const outcome of settled) {
+    if (outcome.status === "fulfilled") results.success++;
+    else {
       results.failed++;
-      console.error(`❌ Failed article ${article.id}:`, err.message);
-      // processed stays false — will retry next run
+      console.error("❌ Article failed:", outcome.reason);
     }
   }
 
   return new Response(JSON.stringify(results), { status: 200 });
 });
 
+async function processArticle(article: { id: string; title: string; body: string }) {
+  const aiOutput = await processWithAI(article.title, article.body);
+
+  const { error: upsertError } = await supabase
+    .from("processed_articles")
+    .upsert({
+      article_id:      article.id,
+      teen_headline:   aiOutput.teen_headline,
+      teen_summary:    aiOutput.teen_summary,
+      teen_body:       aiOutput.teen_body,
+      mood:            aiOutput.mood,
+      status:          "draft",
+      ai_processed_at: new Date().toISOString(),
+    }, { onConflict: "article_id" });
+
+  if (upsertError) throw upsertError;
+
+  const { error: updateError } = await supabase
+    .from("articles")
+    .update({ processed: true })
+    .eq("id", article.id);
+
+  if (updateError) throw updateError;
+
+  console.log(`✅ Processed: ${article.title}`);
+}
+
 async function processWithAI(title: string, body: string) {
-  let response;
+  let response: Response;
   try {
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -85,24 +90,54 @@ async function processWithAI(title: string, body: string) {
       }),
     });
   } catch (err: unknown) {
-    console.error("Fetch failed:", (err as Error).message);
-    throw err;
+    throw new Error(`Network error calling OpenRouter: ${(err as Error).message}`);
   }
 
-  const data = await response.json();
-  console.log("OpenRouter response:", JSON.stringify(data));
-  const raw: string = data.choices[0].message.content;
-  // response_format guarantees valid JSON, but strip fences as a safety net
-  const cleaned = raw.replace(/```json\n?|```/g, "").trim();
-  const parsed = JSON.parse(cleaned);
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "(unreadable body)");
+    throw new Error(`OpenRouter HTTP ${response.status}: ${errorText}`);
+  }
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("OpenRouter returned non-JSON response");
+  }
+
+  const choices = (data as { choices?: { message?: { content?: string } }[] }).choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    throw new Error(`OpenRouter returned no choices: ${JSON.stringify(data)}`);
+  }
+
+  const raw = choices[0]?.message?.content;
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new Error("OpenRouter choice has empty or missing content");
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    const cleaned = raw.replace(/```json\n?|```/g, "").trim();
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error(`Failed to parse AI JSON output: ${raw.slice(0, 200)}`);
+  }
 
   const required = ["teen_headline", "teen_summary", "teen_body", "mood"];
   for (const field of required) {
-    if (!parsed[field]) throw new Error(`Missing field: ${field}`);
+    if (!parsed[field]) throw new Error(`AI output missing field: ${field}`);
   }
 
-  return parsed;
+  return parsed as {
+    teen_headline: string;
+    teen_summary:  string;
+    teen_body:     string;
+    mood:          string;
+  };
+
+
 }
+
 
 const SYSTEM_PROMPT = `
 You are a writer for a news site aimed at teenagers aged 13–18.
