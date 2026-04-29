@@ -31,7 +31,6 @@
   }
 }
 
-/* ── Card ── */
 .card {
   background:    var(--color-bg, #151515);
   border:        1px solid var(--dividerBg, #ffffff1f);
@@ -60,15 +59,10 @@
   outline-offset: 2px;
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
 /* ── Image wrapper — 16:10 aspect ratio ── */
 .card-img-wrap {
   position:     relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 3 / 4;       /* portrait, like image 2 */
   overflow:     hidden;
   background:   #1a1a1a;
   flex-shrink:  0;
@@ -88,10 +82,8 @@
   height:     100%;
   background: repeating-linear-gradient(
     135deg,
-    #1c1c1c 0px,
-    #1c1c1c 1px,
-    #191919 1px,
-    #191919 18px
+    #1c1c1c 0px, #1c1c1c 1px,
+    #191919 1px, #191919 18px
   );
 }
 .card-img-overlay {
@@ -99,21 +91,19 @@
   inset:      0;
   background: linear-gradient(
     to bottom,
-    transparent 50%,
-    rgba(0,0,0,0.30) 100%
+    transparent 35%,
+    rgba(0,0,0,0.55) 65%,
+    rgba(0,0,0,0.85) 100%
   );
   pointer-events: none;
 }
 
-/* ── Mood badge ── */
 .mood-badge {
-  position:        absolute;
-  top:             10px;
-  right:           10px;
+  align-self:      flex-start;
   font-size:       11px;
   font-weight:     650;
   letter-spacing:  0.03em;
-  padding:         4px 9px;
+  padding:         4px 10px;
   border-radius:   20px;
   border:          1px solid;
   backdrop-filter: blur(10px);
@@ -132,14 +122,25 @@
   justify-content: flex-start;
 }
 .card-headline {
-  font-size:   14.5px;
+  font-size:   15px;
   font-weight: 700;
-  line-height: 1.45;
-  color:       var(--textL, #F2F2F2);
+  line-height: 1.4;
+  color:       #F2F2F2;
   display:     -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow:    hidden;
+  margin:      0;
+}
+.card-overlay-content {
+  position:       absolute;
+  bottom:         0;
+  left:           0;
+  right:          0;
+  padding:        16px 14px 14px;
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
 }
 
 /* ── States (error / empty only) ── */

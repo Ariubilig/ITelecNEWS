@@ -6,6 +6,7 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+
 Deno.serve(async (req) => {
 
 
@@ -56,7 +57,7 @@ async function processArticle(article: { id: string; title: string; body: string
       teen_body:       aiOutput.teen_body,
       mood:            aiOutput.mood,
       status:          "draft",
-      ai_processed_at: new Date().toISOString(),
+      processed_at: new Date().toISOString(),
     }, { onConflict: "article_id" });
 
   if (upsertError) throw upsertError;
@@ -117,8 +118,11 @@ async function processWithAI(title: string, body: string) {
 
   let parsed: Record<string, unknown>;
   try {
-    const cleaned = raw.replace(/```json\n?|```/g, "").trim();
-    parsed = JSON.parse(cleaned);
+  const cleaned = raw
+    .replace(/```json\n?|```/g, "")
+    .replace(/\n/g, " ")   // ← collapse literal newlines inside string values
+    .trim();
+  parsed = JSON.parse(cleaned);
   } catch {
     throw new Error(`Failed to parse AI JSON output: ${raw.slice(0, 200)}`);
   }
