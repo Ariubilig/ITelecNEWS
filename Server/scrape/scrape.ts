@@ -70,15 +70,8 @@ async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> 
             .querySelector('meta[property="og:image"]')
             ?.getAttribute("content") || "";
 
-        let sectionCount = 0;
-        const htmlParts: string[] = [];
 
-        for (const el of body.children) {
-          if (el.tagName === "P" && el.querySelector("b")) sectionCount++;
-          if (sectionCount >= 3) break;
-          htmlParts.push(el.outerHTML);
-        }
-
+        const htmlParts = Array.from(body.children).map(el => el.outerHTML);
         return { title, date, image, body: htmlParts.join("\n") };
       });
 

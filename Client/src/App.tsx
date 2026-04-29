@@ -30,6 +30,7 @@ function App() {
 
 
     <ScrollBar />
+    
     <div id="smooth-wrapper" ref={wrapperRef}>
       <div id="smooth-content">
 
@@ -39,7 +40,6 @@ function App() {
           <Route path="/article/:id" element={<Reading />} />
           {/* <Route path="*" element={<NotFound />} /> */}
         </Routes>
-
 
       </div>
     </div>
