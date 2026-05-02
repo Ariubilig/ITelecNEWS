@@ -1,36 +1,37 @@
 :root {
   --color-bg: #151515;
-  
+
   --textDefault: #FFFFFF;
   --textL: #F2F2F2;
   --textM: #BFBFBF;
   --textS: #8C8C8C;
-  
+
   --btn-bg: #FFFFFF;
   --btn-text: #151515;
   --btn-hover: #F2F2F2;
-  
+
   --link-color: #FFFFFF;
   --link-hover: #F2F2F2;
-  
+
   --divider: #ffffff;
   --dividerBg: #ffffff1f;
 }
+
 [data-theme="light"] {
   --color-bg: #FFFFFF;
-  
+
   --textDefault: #151515;
   --textL: #2C2C2C;
   --textM: #595959;
   --textS: #8C8C8C;
-  
+
   --btn-bg: #151515;
   --btn-text: #FFFFFF;
   --btn-hover: #2C2C2C;
-  
+
   --link-color: #151515;
   --link-hover: #2C2C2C;
-  
+
   --divider: #151515;
   --dividerBg: #1515151f;
 }

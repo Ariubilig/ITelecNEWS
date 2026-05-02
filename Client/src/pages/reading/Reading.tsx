@@ -7,6 +7,8 @@ import BackIcon from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
 import LinkIcon from "../../assets/link.svg";
 
+import Comments from '../../components/comment/comment';
+
 const MOOD_CONFIG = {
   wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
   heavy:     { label: "Хүнд",            color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
@@ -75,10 +77,15 @@ export default function Reading() {
     if (article?.url) window.open(article.url, "_blank", "noopener,noreferrer");
   }
 
+  // Scroll to the comments section
+  function handleScrollToComments() {
+    document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <div className="reading-root" ref={contentRef}>
 
-      {/* Floating action buttons — individual circles with dividers */}
+      {/* Floating action buttons */}
       <div
         className="fab-panel"
         style={fabLeft != null ? { left: fabLeft } : undefined}
@@ -89,7 +96,11 @@ export default function Reading() {
 
         <div className="fab-divider" />
 
-        <button className="fab-btn" onClick={() => {}} aria-label="Сэтгэгдэл">
+        <button
+          className="fab-btn"
+          onClick={handleScrollToComments}  // ← was empty
+          aria-label="Сэтгэгдэл"
+        >
           <img src={CommentIcon} className="fab-icon" alt="" />
         </button>
 
@@ -151,6 +162,9 @@ export default function Reading() {
               </div>
             </>
           )}
+
+          {/* ── Comments ─────────────────────────────────────────── */}
+          <Comments articleId={item.article_id} />
         </>
       )}
     </div>
