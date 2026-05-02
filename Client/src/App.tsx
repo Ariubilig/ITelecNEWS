@@ -4,8 +4,8 @@ import { useRef } from "react";
 
 import Home from "./pages/home/Home";
 import Reading from './pages/reading/Reading';
-import Navbar from './components/ui/Navbar/Navbar';
-import ScrollBar from './components/ui/ScrollBar/ScrollBar';
+import Navbar from './components/UI/Navbar/Navbar';
+import ScrollBar from './components/UI/ScrollBar/ScrollBar';
 
 import { useScrollSmoother } from "./hooks/useScrollSmoother";
 import { useFontsReady } from "./hooks/useFontsReady";
