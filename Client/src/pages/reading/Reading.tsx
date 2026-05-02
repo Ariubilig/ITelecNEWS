@@ -9,6 +9,27 @@ import LinkIcon from "../../assets/link.svg";
 
 import Comments from '../../components/comment/Comment';
 
+
+interface Article {
+  id: string | number;
+  title?: string;
+  image?: string;
+  url?: string;
+  date?: string;
+  body?: string;
+}
+
+interface ProcessedArticle {
+  id: string | number;
+  article_id?: string | number;
+  mood?: string;
+  teen_headline?: string;
+  teen_summary?: string;
+  teen_body?: string;
+  articles?: Article;
+}
+
+type MoodKey = keyof typeof MOOD_CONFIG;
 const MOOD_CONFIG = {
   wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
   heavy:     { label: "Хүнд",            color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
@@ -21,21 +42,22 @@ const MOOD_CONFIG = {
 
 function getMoodStyle(mood: string | undefined) {
   if (!mood) return MOOD_CONFIG.heavy;
-  const key = mood.toLowerCase().trim();
-  return MOOD_CONFIG[key] || MOOD_CONFIG.heavy;
+  const key = mood.toLowerCase().trim() as MoodKey;
+  return MOOD_CONFIG[key] ?? MOOD_CONFIG.heavy;
 }
-
 function getImageUrl(article: Article | undefined) {
   if (!article?.image) return null;
   if (article.image.startsWith("http")) return article.image;
   return `https://unread.today/files/${article.id}/${article.image}`;
 }
 
+
 export default function Reading() {
+  
   const { id } = useParams();
   const navigate = useNavigate();
-  const [item, setItem] = useState(null);
-  const [fabLeft, setFabLeft] = useState(null);
+  const [item, setItem] = useState<ProcessedArticle | null>(null);
+  const [fabLeft, setFabLeft] = useState<number | null>(null);
 
 
   useEffect(() => {
