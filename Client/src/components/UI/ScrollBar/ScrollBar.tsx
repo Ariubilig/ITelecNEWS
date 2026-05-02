@@ -17,6 +17,8 @@ const scrollTo = (pct: number, max: number) => {
 };
 
 export default function ScrollBar() {
+
+  
   const rootRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);

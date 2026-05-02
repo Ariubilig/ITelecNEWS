@@ -1,6 +1,6 @@
 import './Navbar.css'
 
-function Navbar() {
+export default function Navbar() {
     return (
         <nav className="navbar">
             <div className="navbar-brand">
@@ -16,5 +16,3 @@ function Navbar() {
         </nav>
     )
 }
-
-export default Navbar
