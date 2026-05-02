@@ -7,7 +7,7 @@ import BackIcon from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
 import LinkIcon from "../../assets/link.svg";
 
-import Comments from '../../components/comment/comment';
+import Comments from '../../components/comment/Comment';
 
 const MOOD_CONFIG = {
   wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
@@ -19,13 +19,13 @@ const MOOD_CONFIG = {
   important: { label: "Чухал",           color: "#f87171", bg: "rgba(248,113,113,0.10)", border: "rgba(248,113,113,0.30)" },
 };
 
-function getMoodStyle(mood) {
+function getMoodStyle(mood: string | undefined) {
   if (!mood) return MOOD_CONFIG.heavy;
   const key = mood.toLowerCase().trim();
   return MOOD_CONFIG[key] || MOOD_CONFIG.heavy;
 }
 
-function getImageUrl(article) {
+function getImageUrl(article: Article | undefined) {
   if (!article?.image) return null;
   if (article.image.startsWith("http")) return article.image;
   return `https://unread.today/files/${article.id}/${article.image}`;
@@ -37,7 +37,6 @@ export default function Reading() {
   const [item, setItem] = useState(null);
   const [fabLeft, setFabLeft] = useState(null);
 
-  const contentRef = useRef(null);
 
   useEffect(() => {
     async function fetchArticle() {
@@ -72,6 +71,7 @@ export default function Reading() {
   const headline = item?.teen_headline || article?.title || "Гарчиг байхгүй";
   const summary = item?.teen_summary;
   const body = item?.teen_body || article?.body;
+  const contentRef = useRef<HTMLDivElement>(null);
 
   function handleOpenLink() {
     if (article?.url) window.open(article.url, "_blank", "noopener,noreferrer");
@@ -131,8 +131,11 @@ export default function Reading() {
                 src={imageUrl}
                 alt={headline}
                 className="hero-img"
-                onError={(e) => { e.target.parentElement.style.display = "none"; }}
-              />
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  if (img.parentElement) img.parentElement.style.display = "none";
+                }}
+              />  {/* ← this was missing */}
               <div className="hero-gradient" />
             </div>
           )}
@@ -156,9 +159,9 @@ export default function Reading() {
             <>
               <div className="divider" />
               <div className="article-body">
-                {body.split("\n").filter(Boolean).map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
+              {body.split("\n").filter(Boolean).map((para: string, i: number) => (
+                <p key={i}>{para}</p>
+              ))}
               </div>
             </>
           )}

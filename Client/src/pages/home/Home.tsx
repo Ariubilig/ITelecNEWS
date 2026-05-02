@@ -1,29 +1,62 @@
 import "./Home.css";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 
-const MOOD_STYLE = {
-  wild:      { label: "Гайхмаар",      color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
-  heavy:     { label: "Хүнд",     color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
-  inspiring: { label: "Урамдуулах", color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)" },
-  sus:       { label: "Эргэлзээтэй",       color: "#c084fc", bg: "rgba(192,132,252,0.10)", border: "rgba(192,132,252,0.30)" },
-  lowkey:    { label: "Намуун",    color: "#6ee7b7", bg: "rgba(110,231,183,0.10)", border: "rgba(110,231,183,0.28)" },
-  chaotic:   { label: "Эмх замбараагүй",   color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.30)" },
-  important: { label: "Чухал", color: "#f87171", bg: "rgba(248,113,113,0.10)", border: "rgba(248,113,113,0.30)" },
+interface MoodStyle {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+}
+
+interface Article {
+  id: string | number;
+  title?: string;
+  image?: string;
+  url?: string;
+  date?: string;
+  body?: string;
+}
+
+interface ProcessedArticle {
+  id: string | number;
+  mood?: string;
+  teen_headline?: string;
+  article_id?: string | number;
+  articles?: Article;
+  processed_at?: string;
+}
+
+
+const MOOD_STYLE: Record<string, MoodStyle> = {
+  wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
+  heavy:     { label: "Хүнд",            color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
+  inspiring: { label: "Урамдуулах",      color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)" },
+  sus:       { label: "Эргэлзээтэй",     color: "#c084fc", bg: "rgba(192,132,252,0.10)", border: "rgba(192,132,252,0.30)" },
+  lowkey:    { label: "Намуун",          color: "#6ee7b7", bg: "rgba(110,231,183,0.10)", border: "rgba(110,231,183,0.28)" },
+  chaotic:   { label: "Эмх замбараагүй", color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.30)" },
+  important: { label: "Чухал",           color: "#f87171", bg: "rgba(248,113,113,0.10)", border: "rgba(248,113,113,0.30)" },
 };
 
-function getMoodStyle(mood) {
+
+function getMoodStyle(mood: string | undefined): MoodStyle | null {
   if (!mood) return null;
   return MOOD_STYLE[mood.toLowerCase().trim()] ?? null;
 }
 
-function getImage(article) {
-  return article?.image || null;
+function getImage(article: Article | undefined): string | null {
+  return article?.image ?? null;
 }
 
-function ArticleCard({ item, index }) {
+
+interface ArticleCardProps {
+  item: ProcessedArticle;
+  index: number;
+}
+
+function ArticleCard({ item, index }: ArticleCardProps) {
   const navigate = useNavigate();
   const article  = item.articles;
   const mood     = getMoodStyle(item.mood);
@@ -34,7 +67,8 @@ function ArticleCard({ item, index }) {
   return (
     <article
       className="card"
-      style={{ "--delay": `${index * 55}ms` }}
+      // Cast needed because CSS custom properties aren't in the CSSProperties type
+      style={{ "--delay": `${index * 55}ms` } as React.CSSProperties}
       onClick={() => navigate(`/article/${item.id}`)}
       role="button"
       tabIndex={0}
@@ -71,8 +105,9 @@ function ArticleCard({ item, index }) {
   );
 }
 
+
 export default function Home() {
-  const [articles, setArticles] = useState([]);
+  const [articles, setArticles] = useState<ProcessedArticle[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -82,7 +117,7 @@ export default function Home() {
         .order("processed_at", { ascending: false })
         .limit(60);
 
-      setArticles(data || []);
+      setArticles(data ?? []);
     })();
   }, []);
 
@@ -91,7 +126,7 @@ export default function Home() {
       {articles.length > 0 && (
         <div className="articles-grid">
           {articles.map((item, i) => (
-            <ArticleCard key={item.id} item={item} index={i} />
+            <ArticleCard key={String(item.id)} item={item} index={i} />
           ))}
         </div>
       )}

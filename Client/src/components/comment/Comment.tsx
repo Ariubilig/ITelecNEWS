@@ -1,26 +1,48 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
-import { timeAgo, buildTree } from "../../utility/Comment";
+import { timeAgo, buildTree, CommentNode } from "../../utility/Comment";
 import "./Comment.css";
 
 
-//////////////////////////////////////////////////
-function useComments(articleId) {
-  const [tree, setTree] = useState([]);
+interface ComposeFormProps {
+  articleId: string | number;
+  parentId: string | number | null;
+  onPosted: () => void;
+  onCancel?: () => void;
+  autoFocus?: boolean;
+}
+
+interface CommentCardProps {
+  comment: CommentNode;
+  replyTo: string | number | null;
+  onReply: (id: string | number | null) => void;
+  onPosted: () => void;
+  articleId: string | number;
+  depth?: number;
+}
+
+interface CommentsProps {
+  articleId: string | number | undefined;
+}
+
+
+function useComments(articleId: string | number) {
+  const [tree, setTree] = useState<CommentNode[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const { data = [] } = await supabase
+    const { data } = await supabase
       .from("comments")
       .select("*")
       .eq("article_id", articleId)
       .eq("status", "published")
       .order("created_at", { ascending: true });
 
-    setTotal(data.length);
-    setTree(buildTree(data));
+    const comments = data ?? [];
+    setTotal(comments.length);
+    setTree(buildTree(comments));
     setLoading(false);
   };
 
@@ -28,15 +50,14 @@ function useComments(articleId) {
 
   return { tree, total, loading, load };
 }
-//////////////////////////////////////////////////
 
 
-function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }) {
+function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }: ComposeFormProps) {
   const [name, setName] = useState(() => localStorage.getItem("cmt_name") ?? "");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const textRef = useRef(null);
+  const textRef = useRef<HTMLTextAreaElement>(null); // ← typed ref
 
   useEffect(() => { if (autoFocus) textRef.current?.focus(); }, [autoFocus]);
 
@@ -58,7 +79,6 @@ function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }) {
     });
 
     setBusy(false);
-
     if (dbError) return setError("Алдаа гарлаа. Дахин оролдоно уу.");
 
     localStorage.setItem("cmt_name", trimName);
@@ -100,21 +120,21 @@ function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }) {
 }
 
 
-function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0 }) {
+function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0 }: CommentCardProps) {
   const isReplying = replyTo === comment.id;
 
   return (
     <div className={`cmt-card depth-${Math.min(depth, 2)}`}>
-      <div className="cmt-avatar">{comment.guest_name?.[0]?.toUpperCase() ?? "?"}</div>
+      <div className="cmt-avatar">{String(comment.guest_name)?.[0]?.toUpperCase() ?? "?"}</div>
 
       <div className="cmt-body">
         <div className="cmt-meta">
-          <span className="cmt-name">{comment.guest_name}</span>
+          <span className="cmt-name">{String(comment.guest_name)}</span>
           <span className="cmt-dot" />
-          <span className="cmt-time">{timeAgo(comment.created_at)}</span>
+          <span className="cmt-time">{timeAgo(String(comment.created_at))}</span>
         </div>
 
-        <p className="cmt-text">{comment.content}</p>
+        <p className="cmt-text">{String(comment.content)}</p>
 
         <button className="cmt-reply-btn" onClick={() => onReply(isReplying ? null : comment.id)}>
           {isReplying ? "Болих" : "Хариу өгөх"}
@@ -135,7 +155,7 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
         <div className="cmt-replies">
           {comment.replies.map((r) => (
             <CommentCard
-              key={r.id}
+              key={String(r.id)}
               comment={r}
               replyTo={replyTo}
               onReply={onReply}
@@ -151,13 +171,14 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
 }
 
 
-export default function Comments({ articleId }) {
-  const { tree, total, loading, load } = useComments(articleId);
-  const [replyTo, setReplyTo] = useState(null);
+export default function Comments({ articleId }: CommentsProps) {
+  const { tree, total, loading, load } = useComments(articleId!);
+  const [replyTo, setReplyTo] = useState<string | number | null>(null);
 
   if (!articleId) return null;
 
-  const toggleReply = (id) => setReplyTo((prev) => (prev === id ? null : id));
+  const toggleReply = (id: string | number | null) =>
+    setReplyTo((prev) => (prev === id ? null : id));
   const handlePosted = () => { setReplyTo(null); load(); };
 
   return (
@@ -181,7 +202,7 @@ export default function Comments({ articleId }) {
         <div className="cmt-list">
           {tree.map((c) => (
             <CommentCard
-              key={c.id}
+              key={String(c.id)}
               comment={c}
               replyTo={replyTo}
               onReply={toggleReply}
