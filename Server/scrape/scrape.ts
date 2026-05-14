@@ -114,7 +114,7 @@ async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> 
 async function main(): Promise<void> {
 
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",

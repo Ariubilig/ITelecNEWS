@@ -4,6 +4,8 @@ import { useRef } from "react";
 
 import Home from "./pages/home/Home";
 import Reading from './pages/reading/Reading';
+import Admin from './pages/admin/Admin';
+import AdminLogin from './pages/admin/AdminLogin';
 import Navbar from './components/UI/Navbar/Navbar';
 import ScrollBar from './components/UI/ScrollBar/ScrollBar';
 
@@ -13,38 +15,34 @@ import { useFontsReady } from "./hooks/useFontsReady";
 
 function App() {
 
-
   //////////////////////////////////////////////////
   const fontsReady = useFontsReady();
   const wrapperRef = useRef<HTMLDivElement>(null);
   useScrollSmoother(wrapperRef, fontsReady);
   //////////////////////////////////////////////////
 
-  // if (!fontsReady) {
-  //   return <div>Fonts loading…</div>;
-  // }
-
-
   return (
     <>
 
 
-    <ScrollBar />
-    
-    <div id="smooth-wrapper" ref={wrapperRef}>
-      <div id="smooth-content">
+      <ScrollBar />
 
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/article/:id" element={<Reading />} />
-          {/* <Route path="*" element={<NotFound />} /> */}
-        </Routes>
+      <div id="smooth-wrapper" ref={wrapperRef}>
+        <div id="smooth-content">
 
+
+          <Navbar />
+
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/article/:id" element={<Reading />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+          </Routes>
+
+
+        </div>
       </div>
-    </div>
-
-    
     </>
   );
 }

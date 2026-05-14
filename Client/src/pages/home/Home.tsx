@@ -2,14 +2,7 @@ import "./Home.css";
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
-
-
-interface MoodStyle {
-  label: string;
-  color: string;
-  bg: string;
-  border: string;
-}
+import { getMoodStyle } from "../../lib/mood";
 
 interface Article {
   id: string | number;
@@ -29,22 +22,6 @@ interface ProcessedArticle {
   processed_at?: string;
 }
 
-
-const MOOD_STYLE: Record<string, MoodStyle> = {
-  wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
-  heavy:     { label: "Хүнд",            color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
-  inspiring: { label: "Урамдуулах",      color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)" },
-  sus:       { label: "Эргэлзээтэй",     color: "#c084fc", bg: "rgba(192,132,252,0.10)", border: "rgba(192,132,252,0.30)" },
-  lowkey:    { label: "Намуун",          color: "#6ee7b7", bg: "rgba(110,231,183,0.10)", border: "rgba(110,231,183,0.28)" },
-  chaotic:   { label: "Эмх замбараагүй", color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.30)" },
-  important: { label: "Чухал",           color: "#f87171", bg: "rgba(248,113,113,0.10)", border: "rgba(248,113,113,0.30)" },
-};
-
-
-function getMoodStyle(mood: string | undefined): MoodStyle | null {
-  if (!mood) return null;
-  return MOOD_STYLE[mood.toLowerCase().trim()] ?? null;
-}
 
 function getImage(article: Article | undefined): string | null {
   return article?.image ?? null;
@@ -108,28 +85,49 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 
 export default function Home() {
   const [articles, setArticles] = useState<ProcessedArticle[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
-        .from("processed_articles")
-        .select("*, articles(*)")
-        .order("processed_at", { ascending: false })
-        .limit(60);
+      setLoading(true);
+      try {
+        const { data } = await supabase
+          .from("processed_articles")
+          .select("*, articles(*)")
+          .eq("status", "published")
+          .order("processed_at", { ascending: false })
+          .limit(60);
 
-      setArticles(data ?? []);
+        setArticles(data ?? []);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="home-root">
+        <div className="home-loading">Уншиж байна…</div>
+      </div>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="home-root">
+        <div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="home-root">
-      {articles.length > 0 && (
-        <div className="articles-grid">
-          {articles.map((item, i) => (
-            <ArticleCard key={String(item.id)} item={item} index={i} />
-          ))}
-        </div>
-      )}
+      <div className="articles-grid">
+        {articles.map((item, i) => (
+          <ArticleCard key={String(item.id)} item={item} index={i} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
+import pLimit from "https://esm.sh/p-limit@6";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -30,8 +30,9 @@ Deno.serve(async (req) => {
 
   const results = { success: 0, failed: 0 };
 
+  const limit = pLimit(3);
   const settled = await Promise.allSettled(
-    articles.map((article) => processArticle(article))
+    articles.map((article) => limit(() => processArticle(article)))
   );
 
   for (const outcome of settled) {
@@ -56,7 +57,7 @@ async function processArticle(article: { id: string; title: string; body: string
       teen_summary:    aiOutput.teen_summary,
       teen_body:       aiOutput.teen_body,
       mood:            aiOutput.mood,
-      status:          "draft",
+      status:          "published",
       processed_at: new Date().toISOString(),
     }, { onConflict: "article_id" });
 

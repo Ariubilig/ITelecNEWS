@@ -6,7 +6,7 @@ sequenceDiagram
     participant EF as Edge Function
     participant AI as OpenRouter AI
 
-    GH->>SC: tsx scrape/Scrape.ts
+    GH->>SC: tsx scrape/scrape.ts
     SC->>SC: Collect URLs from unread.today
     loop Each article URL
         SC->>SC: Scrape title, date, image, body

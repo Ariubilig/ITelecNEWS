@@ -58,7 +58,7 @@ function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }: Com
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const textRef = useRef<HTMLTextAreaElement>(null); // ← typed ref
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { if (autoFocus) textRef.current?.focus(); }, [autoFocus]);
 

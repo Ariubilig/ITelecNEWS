@@ -1,11 +1,16 @@
 import './Reading.css'
 import { supabase } from "../../lib/supabase";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { ScrollSmoother } from "gsap/ScrollSmoother";
 import { useParams, useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
+import { getMoodStyle, MOOD_CONFIG } from "../../lib/mood";
 
-import BackIcon from "../../assets/back.svg";
+import BackIcon    from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
-import LinkIcon from "../../assets/link.svg";
+import LinkIcon    from "../../assets/link.svg";
+import EditIcon    from "../../assets/edit.svg";
 
 import Comments from '../../components/comment/Comment';
 
@@ -22,6 +27,7 @@ interface Article {
 interface ProcessedArticle {
   id: string | number;
   article_id?: string | number;
+  status?: string;
   mood?: string;
   teen_headline?: string;
   teen_summary?: string;
@@ -29,48 +35,82 @@ interface ProcessedArticle {
   articles?: Article;
 }
 
-type MoodKey = keyof typeof MOOD_CONFIG;
-const MOOD_CONFIG = {
-  wild:      { label: "Гайхмаар",        color: "#ff6b35", bg: "rgba(255,107,53,0.12)",  border: "rgba(255,107,53,0.35)" },
-  heavy:     { label: "Хүнд",            color: "#a8b5c8", bg: "rgba(168,181,200,0.10)", border: "rgba(168,181,200,0.28)" },
-  inspiring: { label: "Урамдуулах",      color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)" },
-  sus:       { label: "Эргэлзээтэй",     color: "#c084fc", bg: "rgba(192,132,252,0.10)", border: "rgba(192,132,252,0.30)" },
-  lowkey:    { label: "Намуун",          color: "#6ee7b7", bg: "rgba(110,231,183,0.10)", border: "rgba(110,231,183,0.28)" },
-  chaotic:   { label: "Эмх замбараагүй", color: "#fb923c", bg: "rgba(251,146,60,0.10)",  border: "rgba(251,146,60,0.30)" },
-  important: { label: "Чухал",           color: "#f87171", bg: "rgba(248,113,113,0.10)", border: "rgba(248,113,113,0.30)" },
-};
-
-function getMoodStyle(mood: string | undefined) {
-  if (!mood) return MOOD_CONFIG.heavy;
-  const key = mood.toLowerCase().trim() as MoodKey;
-  return MOOD_CONFIG[key] ?? MOOD_CONFIG.heavy;
+interface EditForm {
+  teen_headline: string;
+  teen_summary:  string;
+  teen_body:     string;
+  mood:          string;
+  status:        string;
+  image:         string;
 }
+
 function getImageUrl(article: Article | undefined) {
-  if (!article?.image) return null;
-  if (article.image.startsWith("http")) return article.image;
-  return `https://unread.today/files/${article.id}/${article.image}`;
+  return article?.image ?? null;
 }
 
 
 export default function Reading() {
-  
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [item, setItem] = useState<ProcessedArticle | null>(null);
-  const [fabLeft, setFabLeft] = useState<number | null>(null);
 
+  const { id }      = useParams();
+  const navigate    = useNavigate();
+  const contentRef  = useRef<HTMLDivElement>(null);
+
+  const [item,     setItem]     = useState<ProcessedArticle | null>(null);
+  const [fabLeft,  setFabLeft]  = useState<number | null>(null);
+  const [isAdmin,  setIsAdmin]  = useState(false);
+  const [editing,  setEditing]  = useState(false);
+  const [saving,   setSaving]   = useState(false);
 
   useEffect(() => {
-    async function fetchArticle() {
-      const { data } = await supabase
-        .from("processed_articles")
-        .select(`*, articles(*)`)
-        .eq("id", id)
-        .single();
-      setItem(data);
+    const smoother = ScrollSmoother.get();
+    if (editing) {
+      const pos = smoother?.scrollTop() ?? 0;
+      smoother?.paused(true);
+      smoother?.scrollTop(pos);
+    } else {
+      smoother?.paused(false);
     }
-    fetchArticle();
+    return () => { ScrollSmoother.get()?.paused(false); };
+  }, [editing]);
+  const [editForm, setEditForm] = useState<EditForm>({
+    teen_headline: "",
+    teen_summary:  "",
+    teen_body:     "",
+    mood:          "heavy",
+    status:        "published",
+    image:         "",
+  });
+
+  const fetchArticle = useCallback(async () => {
+    const { data } = await supabase
+      .from("processed_articles")
+      .select(`*, articles(*)`)
+      .eq("id", id)
+      .single();
+    setItem(data);
   }, [id]);
+
+  useEffect(() => { fetchArticle(); }, [fetchArticle]);
+
+  useEffect(() => {
+    if (!item) return;
+    setEditForm({
+      teen_headline: item.teen_headline ?? "",
+      teen_summary:  item.teen_summary  ?? "",
+      teen_body:     item.teen_body     ?? "",
+      mood:          item.mood          ?? "heavy",
+      status:        item.status        ?? "published",
+      image:         item.articles?.image ?? "",
+    });
+  }, [item]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setIsAdmin(!!data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsAdmin(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Anchor fab 40px to the right of the article's actual right edge
   useEffect(() => {
@@ -87,21 +127,45 @@ export default function Reading() {
     };
   }, [item]);
 
-  const article = item?.articles;
+  const article  = item?.articles;
   const imageUrl = getImageUrl(article);
-  const mood = getMoodStyle(item?.mood);
+  const mood     = getMoodStyle(item?.mood);
   const headline = item?.teen_headline || article?.title || "Гарчиг байхгүй";
-  const summary = item?.teen_summary;
-  const body = item?.teen_body || article?.body;
-  const contentRef = useRef<HTMLDivElement>(null);
+  const summary  = item?.teen_summary;
+  const body     = item?.teen_body || article?.body;
 
   function handleOpenLink() {
     if (article?.url) window.open(article.url, "_blank", "noopener,noreferrer");
   }
 
-  // Scroll to the comments section
   function handleScrollToComments() {
     document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function setField<K extends keyof EditForm>(key: K, value: EditForm[K]) {
+    setEditForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleSave() {
+    if (!item) return;
+    setSaving(true);
+    await supabase.from("processed_articles").update({
+      teen_headline: editForm.teen_headline,
+      teen_summary:  editForm.teen_summary,
+      teen_body:     editForm.teen_body,
+      mood:          editForm.mood,
+      status:        editForm.status,
+    }).eq("id", item.id);
+
+    if (item.article_id) {
+      await supabase.from("articles").update({
+        image: editForm.image,
+      }).eq("id", item.article_id);
+    }
+
+    await fetchArticle();
+    setSaving(false);
+    setEditing(false);
   }
 
   return (
@@ -120,7 +184,7 @@ export default function Reading() {
 
         <button
           className="fab-btn"
-          onClick={handleScrollToComments}  // ← was empty
+          onClick={handleScrollToComments}
           aria-label="Сэтгэгдэл"
         >
           <img src={CommentIcon} className="fab-icon" alt="" />
@@ -131,6 +195,19 @@ export default function Reading() {
         <button className="fab-btn" onClick={handleOpenLink} aria-label="Эх сурвалж нээх">
           <img src={LinkIcon} className="fab-icon" alt="" />
         </button>
+
+        {isAdmin && (
+          <>
+            <div className="fab-divider" />
+            <button
+              className="fab-btn fab-btn--edit"
+              onClick={() => setEditing(true)}
+              aria-label="Засах"
+            >
+              <img src={EditIcon} className="fab-icon" alt="" />
+            </button>
+          </>
+        )}
       </div>
 
       {item && (
@@ -157,7 +234,7 @@ export default function Reading() {
                   const img = e.target as HTMLImageElement;
                   if (img.parentElement) img.parentElement.style.display = "none";
                 }}
-              />  {/* ← this was missing */}
+              />
               <div className="hero-gradient" />
             </div>
           )}
@@ -180,18 +257,92 @@ export default function Reading() {
           {body && (
             <>
               <div className="divider" />
-              <div className="article-body">
-              {body.split("\n").filter(Boolean).map((para: string, i: number) => (
-                <p key={i}>{para}</p>
-              ))}
-              </div>
+              <div
+                className="article-body"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }}
+              />
             </>
           )}
 
-          {/* ── Comments ─────────────────────────────────────────── */}
           <Comments articleId={item.article_id} />
         </>
       )}
+
+      {/* ── Edit modal ──────────────────────────────────────── */}
+      {editing && createPortal(
+        <div className="edit-overlay" onClick={(e) => e.target === e.currentTarget && setEditing(false)}>
+          <div className="edit-panel">
+            <h2 className="edit-title">Мэдээ засах</h2>
+
+            <label className="edit-label">Гарчиг</label>
+            <input
+              className="edit-input"
+              value={editForm.teen_headline}
+              onChange={(e) => setField("teen_headline", e.target.value)}
+            />
+
+            <label className="edit-label">Хураангуй</label>
+            <textarea
+              className="edit-textarea"
+              rows={3}
+              value={editForm.teen_summary}
+              onChange={(e) => setField("teen_summary", e.target.value)}
+            />
+
+            <label className="edit-label">Агуулга (HTML)</label>
+            <textarea
+              className="edit-textarea"
+              rows={10}
+              value={editForm.teen_body}
+              onChange={(e) => setField("teen_body", e.target.value)}
+            />
+
+            <label className="edit-label">Зурагны URL</label>
+            <input
+              className="edit-input"
+              placeholder="https://..."
+              value={editForm.image}
+              onChange={(e) => setField("image", e.target.value)}
+            />
+
+            <div className="edit-row">
+              <div className="edit-col">
+                <label className="edit-label">Сэтгэл</label>
+                <select
+                  className="edit-select"
+                  value={editForm.mood}
+                  onChange={(e) => setField("mood", e.target.value)}
+                >
+                  {Object.entries(MOOD_CONFIG).map(([key, val]) => (
+                    <option key={key} value={key}>{val.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="edit-col">
+                <label className="edit-label">Төлөв</label>
+                <select
+                  className="edit-select"
+                  value={editForm.status}
+                  onChange={(e) => setField("status", e.target.value)}
+                >
+                  <option value="published">Нийтлэгдсэн</option>
+                  <option value="pending">Хүлээгдэж байна</option>
+                  <option value="declined">Татгалзсан</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="edit-actions">
+              <button className="edit-btn-ghost" onClick={() => setEditing(false)} disabled={saving}>
+                Болих
+              </button>
+              <button className="edit-btn-primary" onClick={handleSave} disabled={saving}>
+                {saving ? "Хадгалж байна…" : "Хадгалах"}
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
     </div>
   );
 }

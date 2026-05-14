@@ -13,7 +13,7 @@ export const timeAgo = (iso: string): string => {
   if (s < 60)    return "Дөнгөж сая";
   if (s < 3600)  return `${Math.floor(s / 60)}м өмнө`;
   if (s < 86400) return `${Math.floor(s / 3600)}ц өмнө`;
-  return `${Math.floor(s / 86400)}х өмнө`;
+  return `${Math.floor(s / 86400)} өдөрийн өмнө`;
 };
 
 export const buildTree = (flat: CommentFlat[]): CommentNode[] => {
