@@ -6,16 +6,15 @@ const SCRAPED_FILE = "json/scrapedURL.json";
 const NEW_FILE     = "json/newURL.json";
 const ARTICLE_FILE = "json/articles.json";
 
-//  1: Collect new URLs
+const readJSON = (file) => fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf-8")) : [];
+const writeJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8");
 
-async function collectURLs(browser) { 
 
+// 1: Collect URLs, keeping only ones not seen before
+async function collectURLs(browser) {
   const page = await browser.newPage();
 
-  await page.goto("https://unread.today/category/7", {
-    waitUntil: "networkidle2",
-  });
-
+  await page.goto("https://unread.today/category/7", { waitUntil: "networkidle2" });
   await page.waitForSelector("#articles1-body");
 
   const foundUrls = await page.$$eval(
@@ -25,92 +24,51 @@ async function collectURLs(browser) {
 
   await page.close();
 
-  if (!fs.existsSync(SCRAPED_FILE)) {
-    fs.writeFileSync(SCRAPED_FILE, "[]", "utf-8");
-  }
+  const scrapedUrls = readJSON(SCRAPED_FILE);
+  const newUrls = foundUrls.filter(url => !scrapedUrls.includes(url));
 
-  const scrapedUrls = JSON.parse(fs.readFileSync(SCRAPED_FILE, "utf-8"));
+  writeJSON(NEW_FILE, newUrls);
+  writeJSON(SCRAPED_FILE, [...scrapedUrls, ...newUrls]);
 
-  const newUrls = [];
-  let skipped = 0;
-
-  for (const url of foundUrls) {
-    if (scrapedUrls.includes(url)) {
-      skipped++;
-    } else {
-      newUrls.push(url);
-      scrapedUrls.push(url);
-    }
-  }
-
-  fs.writeFileSync(NEW_FILE,     JSON.stringify(newUrls,     null, 2), "utf-8");
-  fs.writeFileSync(SCRAPED_FILE, JSON.stringify(scrapedUrls, null, 2), "utf-8");
-
-  console.log("────────────────────────────────");
-  console.log("Step 1 — Collect URLs");
-  console.log(" Found total  :", foundUrls.length);
-  console.log(" New URLs     :", newUrls.length);
-  console.log(" Skipped      :", skipped);
-  console.log(" Total scraped:", scrapedUrls.length);
-  console.log("────────────────────────────────");
-
+  console.log(`Found ${foundUrls.length}, ${newUrls.length} new (${foundUrls.length - newUrls.length} already scraped)`);
   return newUrls;
 }
 
 
-// 2: Scrape articles from new URLs
-
+// 2: Scrape articles from new URLs into the JSON store
 async function scrapeArticles(browser, urls) {
-
   if (!urls.length) {
-    console.log("\n⚠️  No new URLs to scrape.");
+    console.log("⚠️  No new URLs to scrape.");
     return;
   }
 
-  if (!fs.existsSync(ARTICLE_FILE)) {
-    fs.writeFileSync(ARTICLE_FILE, "[]", "utf-8");
-  }
-
-  const savedArticles = JSON.parse(fs.readFileSync(ARTICLE_FILE, "utf-8"));
-
+  const savedArticles = readJSON(ARTICLE_FILE);
   const page = await browser.newPage();
-
-  let success = 0;
-  let failed  = 0;
+  let success = 0, failed = 0;
 
   for (const url of urls) {
     try {
-      console.log("🕷️  Scraping:", url);
-
       await page.goto(url, { waitUntil: "networkidle2" });
 
       const article = await page.evaluate(() => {
         const body = document.querySelector(".article-body.no-wide-image");
         if (!body) return null;
 
-        const title =
-          document.querySelector("h1.uk-article-title")?.innerText || "";
-
-        const date =
-          document.querySelector(".uk-article-meta span")?.innerText || "";
-
-        const image =
-          document
-            .querySelector('meta[property="og:image"]')
-            ?.getAttribute("content") || "";
-
+        // Keep only the lead: stop before the 3rd bold-paragraph section
         let sectionCount = 0;
-        const htmlParts  = [];
-
+        const htmlParts = [];
         for (const el of body.children) {
-          if (el.tagName === "P" && el.querySelector("b")) {
-            sectionCount++;
-          }
+          if (el.tagName === "P" && el.querySelector("b")) sectionCount++;
           if (sectionCount >= 3) break;
           htmlParts.push(el.outerHTML);
         }
 
-        return { title, date, image, body: htmlParts.join("\n") };
+        return {
+          title: document.querySelector("h1.uk-article-title")?.innerText || "",
+          date:  document.querySelector(".uk-article-meta span")?.innerText || "",
+          image: document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "",
+          body:  htmlParts.join("\n"),
+        };
       });
 
       if (!article) throw new Error("Article body not found");
@@ -118,21 +76,15 @@ async function scrapeArticles(browser, urls) {
       savedArticles.push({ url, ...article });
       success++;
       console.log("✅ Done:", article.title);
-
-    } catch (err) {
+    } catch {
       failed++;
       console.log("❌ Failed:", url);
     }
   }
 
   await page.close();
-
-  fs.writeFileSync(ARTICLE_FILE, JSON.stringify(savedArticles, null, 2), "utf-8");
-
-  console.log("────────────────────────────────");
-  console.log("Step 2 — Scrape Articles");
-  console.log("✅ Success:", success);
-  console.log("❌ Failed :", failed);
+  writeJSON(ARTICLE_FILE, savedArticles);
+  console.log(`Done — success: ${success}, failed: ${failed}`);
 }
 
 

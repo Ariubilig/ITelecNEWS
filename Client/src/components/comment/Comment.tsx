@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
-import { timeAgo, buildTree } from "../../utility/Comment";
-import type { CommentNode } from "../../utility/Comment";
+import { timeAgo, buildTree } from "../../utils/Comment";
+import type { CommentNode } from "../../utils/Comment";
 import "./Comment.css";
 
 
