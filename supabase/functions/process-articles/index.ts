@@ -6,13 +6,17 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+const AI_TIMEOUT_MS = 60_000;
 
-Deno.serve(async (req) => {
+type Article = { id: string; title: string; body: string };
+
+
+Deno.serve(async (_req: Request) => {
 
 
   const { data: articles, error: fetchError } = await supabase
     .from("articles")
-    .select("id, title, body, url")
+    .select("id, title, body")
     .eq("processed", false)
     .not("body", "is", null);
 
@@ -32,7 +36,7 @@ Deno.serve(async (req) => {
 
   const limit = pLimit(3);
   const settled = await Promise.allSettled(
-    articles.map((article) => limit(() => processArticle(article)))
+    articles.map((article: Article) => limit(() => processArticle(article)))
   );
 
   for (const outcome of settled) {
@@ -43,10 +47,12 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify(results), { status: 200 });
+  // 200 on full/partial success, 500 only when every article failed
+  const status = results.success === 0 && results.failed > 0 ? 500 : 200;
+  return new Response(JSON.stringify(results), { status });
 });
 
-async function processArticle(article: { id: string; title: string; body: string }) {
+async function processArticle(article: Article) {
   const aiOutput = await processWithAI(article.title, article.body);
 
   const { error: upsertError } = await supabase
@@ -74,6 +80,9 @@ async function processArticle(article: { id: string; title: string; body: string
 }
 
 async function processWithAI(title: string, body: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
   let response: Response;
   try {
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -90,9 +99,15 @@ async function processWithAI(title: string, body: string) {
           { role: "user", content: `TITLE: ${title}\n\nBODY:\n${body}` },
         ],
       }),
+      signal: controller.signal,
     });
   } catch (err: unknown) {
+    if (controller.signal.aborted) {
+      throw new Error(`OpenRouter request timed out after ${AI_TIMEOUT_MS}ms`);
+    }
     throw new Error(`Network error calling OpenRouter: ${(err as Error).message}`);
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!response.ok) {
