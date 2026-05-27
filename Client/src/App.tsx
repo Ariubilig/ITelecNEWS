@@ -10,16 +10,13 @@ import Navbar from './components/UI/Navbar/Navbar';
 import ScrollBar from './components/UI/ScrollBar/ScrollBar';
 
 import { useScrollSmoother } from "./hooks/useScrollSmoother";
-import { useFontsReady } from "./hooks/useFontsReady";
 
 
 function App() {
+  
 
-  //////////////////////////////////////////////////
-  const fontsReady = useFontsReady();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  useScrollSmoother(wrapperRef, fontsReady);
-  //////////////////////////////////////////////////
+  useScrollSmoother(wrapperRef);
 
   return (
     <>

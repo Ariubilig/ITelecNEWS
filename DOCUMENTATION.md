@@ -239,14 +239,11 @@ ITelecNEWS/
 │       │   ├── UI/
 │       │   │   ├── Navbar/        ← Top nav bar
 │       │   │   ├── Footer/        ← Footer
-│       │   │   ├── ScrollBar/     ← Custom scrollbar
-│       │   │   └── ThemeSwitcher/ ← Light/dark/system toggle
+│       │   │   └── ScrollBar/     ← Custom scrollbar
 │       │   └── comment/
 │       │       └── Comment.tsx    ← Nested comment system
 │       ├── hooks/
-│       │   ├── useTheme.ts        ← Theme persistence logic
-│       │   ├── useScrollSmoother.ts← GSAP smooth scroll setup
-│       │   └── useFontsReady.ts   ← Waits for fonts to load
+│       │   └── useScrollSmoother.ts← GSAP smooth scroll setup
 │       ├── lib/
 │       │   ├── supabase.ts        ← Supabase client for the browser
 │       │   └── mood.ts            ← Mood config (colors, Mongolian labels)
