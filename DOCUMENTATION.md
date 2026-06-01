@@ -8,302 +8,374 @@
 4. Users visit the UNWRITE website to read the AI-rewritten news, and can leave comments.
 5. An admin panel lets authenticated editors review, approve, or reject articles before they appear publicly.
 
-The entire pipeline — from scraping to AI rewriting to displaying — is **fully automated**. No human editor is needed for scraping and processing, but admins can curate what is published.
-
-
+The scraping and AI-rewriting pipeline is **fully automated** (runs daily with no human involved), but every AI-rewritten article now lands as a **draft** and an admin must approve it before it appears publicly. Nothing reaches readers without review.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    EVERY DAY AT 3 AM (UTC)                      │
+│                    EVERY DAY AT 3 AM (UTC)                       │
 │                    GitHub Actions triggers                       │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                   STEP 1: SCRAPER (Node.js)                     │
-│  Puppeteer visits unread.today, collects article URLs,          │
-│  then visits each URL and extracts: title, date, image, body    │
-│  Saves raw articles into Supabase `articles` table              │
+│                   STEP 1: SCRAPER (Node.js)                      │
+│  Puppeteer visits unread.today, collects article URLs,           │
+│  then visits each URL and extracts: title, date, image, body     │
+│  Saves raw articles into Supabase `articles` table               │
+│  (per-page timeout + retries + politeness delay)                 │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                STEP 2: AI PROCESSING (Deno Edge Function)       │
-│  Reads all unprocessed articles from the database               │
-│  Sends each one to OpenRouter GPT API (max 3 concurrent)        │
-│  AI rewrites: headline, summary, body — in teen language        │
-│  AI also assigns a "mood" (wild / heavy / inspiring / etc.)     │
-│  Saves result into `processed_articles` table (status=published)│
+│                STEP 2: AI PROCESSING (Deno Edge Function)        │
+│  Reads all unprocessed articles from the database                │
+│  Sends each one to OpenRouter GPT API (max 3 concurrent, retried)│
+│  AI rewrites: headline, summary, body — in teen language         │
+│  AI also assigns a "mood" (wild / heavy / inspiring / etc.)      │
+│  Saves result into `processed_articles` table (status = DRAFT)   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│             STEP 3 (OPTIONAL): ADMIN REVIEW                     │
-│  Admin logs in at /admin/login with email + password            │
-│  Admin panel shows all articles with pending/published status   │
-│  Admin can approve (publish) or decline (reject) articles       │
+│                   STEP 3: ADMIN REVIEW (required)                │
+│  Admin logs in at /admin/login with email + password             │
+│  Admin panel shows draft / published / rejected articles         │
+│  Admin approves (→ published) or declines (→ rejected)           │
+│  Only `published` rows are visible to the public                 │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                  STEP 4: USER VISITS THE SITE                   │
-│  React frontend fetches published processed articles            │
-│  Home page shows article cards with AI headlines + mood badge   │
-│  User clicks an article → Reading page shows full AI rewrite    │
-│  User can leave comments (stored in Supabase `comments` table)  │
+│                  STEP 4: USER VISITS THE SITE                    │
+│  React frontend fetches PUBLISHED processed articles             │
+│  Home page shows article cards with AI headlines + mood badge    │
+│  User clicks an article → Reading page shows full AI rewrite     │
+│  User can leave comments (via a rate-limited edge function)      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
+## 2. Repository Layout (Turborepo Monorepo)
+
+The project is a **Turborepo** monorepo managed with **npm workspaces**. There is no always-on server — the only backend execution is the daily cron scraper and the Supabase Edge Functions.
+
+```
+ITelecNEWS/
+│
+├── package.json          ← root: workspaces, turbo scripts, Node >=22
+├── turbo.json            ← task pipeline (build / lint / typecheck / dev / scrape)
+│
+├── apps/
+│   ├── web/              ← React frontend (was Client/)
+│   └── scraper/          ← Node.js Puppeteer scraper (was Server/)
+│
+├── packages/
+│   └── shared/           ← shared TypeScript: types + mood config
+│
+├── supabase/             ← database migrations + Deno edge functions
+│
+└── .github/workflows/
+    └── scraper.yml       ← daily GitHub Actions automation
+```
+
+Root scripts (each fans out across workspaces via Turbo):
+
+| Command | What it does |
+|---|---|
+| `npm run build` | Type-check + Vite build of the web app |
+| `npm run lint` | ESLint across workspaces |
+| `npm run typecheck` | `tsc` across `shared`, `web`, `scraper` |
+| `npm run dev` | Vite dev server for the web app |
+| `npm run scrape` | Runs the Puppeteer scraper |
+
+The `@itelecnews/shared` package is consumed as raw TypeScript source (no build step) by both `web` (Vite, `moduleResolution: bundler`) and `scraper` (`nodenext`). Its barrel uses explicit `.js` extensions so both resolvers are satisfied.
+
+---
+
 ## 3. Technology Stack
 
-### Frontend (what users see in the browser)
+### Tooling
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **React** | 19 | UI framework — builds all the components |
-| **TypeScript** | 5.x | Adds type safety to JavaScript |
-| **Vite** | 7 | Build tool — bundles the app for production |
-| **React Router** | v7 | Handles navigation between pages |
-| **Supabase JS** | 2.97 | Client library to talk to the database + auth |
-| **GSAP** | 3.15 | Animations — smooth scroll, card fade-ins |
-| **DOMPurify** | 3.x | Sanitizes HTML from the AI before rendering it |
+| **Turborepo** | 2.x | Monorepo task runner + caching |
+| **npm workspaces** | — | Links `apps/*` and `packages/*` |
+| **Node.js** | **22+** | Required (supabase-js needs native `WebSocket`) |
 
-### Backend Scraper
+### Frontend — `apps/web`
+
+| Technology | Version | Purpose |
+|---|---|---|
+| **React** | 19 | UI framework |
+| **TypeScript** | 5.x | Type safety |
+| **Vite** | 7 | Build tool |
+| **React Router** | v7 | Navigation |
+| **Supabase JS** | 2.97 | Database + auth client |
+| **GSAP** | 3.15 | Smooth scroll / animations |
+| **DOMPurify** | 3.x | Sanitizes AI HTML before rendering |
+
+### Scraper — `apps/scraper`
 
 | Technology | Purpose |
 |---|---|
-| **Node.js** | Runtime for the scraper script |
-| **TypeScript** | Type-safe scraping code |
-| **Puppeteer** | Controls a headless Chrome browser to scrape websites |
-| **Supabase JS** | Saves scraped data into the database |
+| **Node.js / tsx** | Runs the scraping script |
+| **Puppeteer** | Headless Chrome to scrape websites |
+| **Supabase JS** | Writes scraped data (uses the service-role key, bypasses RLS) |
 
 ### Database & Cloud
 
 | Technology | Purpose |
 |---|---|
-| **Supabase** | Hosted PostgreSQL database + authentication + Edge Functions |
-| **Deno** | Runtime for the Supabase Edge Function (AI processing) |
-| **OpenRouter API** | Provides access to GPT model for AI rewriting |
-| **GitHub Actions** | Runs the scraper automatically every day |
+| **Supabase** | Hosted PostgreSQL + Auth + Edge Functions |
+| **Deno** | Runtime for the Edge Functions |
+| **OpenRouter API** | GPT model for AI rewriting |
+| **GitHub Actions** | Runs the scraper daily |
 
 ---
 
-## Pipeline
+## 4. Pipeline
 
 ### Step A — GitHub Actions Wakes Up
 
-Every day at 3:00 AM UTC, a scheduled GitHub Actions workflow (`.github/workflows/scraper.yml`) automatically runs. It sets up Node.js 20, installs dependencies, and runs the scraper.
-
-You can also trigger it manually from the GitHub Actions UI.
+Every day at 3:00 AM UTC, `.github/workflows/scraper.yml` runs. It sets up **Node.js 22**, installs dependencies, installs the Linux libraries Puppeteer's Chrome needs, runs the scraper, then triggers AI processing. It can also be run manually via **workflow_dispatch**.
 
 ### Step B — Puppeteer Scrapes the Source Website
 
-The scraper (`Server/scrape/scrape.ts`) uses **Puppeteer**, a library that controls a real headless (invisible) Chrome browser.
+The scraper (`apps/scraper/scrape/scrape.ts`) drives a headless Chrome:
 
-Here is what happens:
+1. Launches Chrome (no window).
+2. Navigates to `unread.today/category/7`.
+3. Collects article URLs via the selector `#articles1-body h3.title a`.
+4. For each URL, extracts title, publication date, hero image, and full HTML body.
+5. Inserts each article into the `articles` table. Duplicate URLs are skipped (the `url` column is `UNIQUE`; conflict code `23505` is treated as "already scraped").
 
-1. Puppeteer launches a Chrome browser (no window, runs in the background).
-2. It navigates to `unread.today/category/7` (a news aggregation page).
-3. It finds all article links using the CSS selector `#articles1-body h3.title a` and collects their URLs.
-4. For each URL, it opens a new browser tab and extracts:
-   - The page title
-   - The publication date
-   - The hero image URL
-   - The full article body as HTML
-5. Each article is inserted into the `articles` table in Supabase.
-   - If the URL already exists (from a previous run), Supabase ignores the duplicate automatically (because `url` has a `UNIQUE` constraint).
+**Resilience:** a per-navigation timeout, up to 3 retries with backoff per page, a short politeness delay between articles, guaranteed browser/page cleanup in `finally`, and a non-zero process exit on a fatal error (so a failed run shows red in CI).
 
 ### Step C — AI Rewrites the Articles
 
-After the scraper finishes, GitHub Actions sends an HTTP POST request to the **Supabase Edge Function** at:
+After scraping, the workflow sends an HTTP POST to the **Supabase Edge Function**:
 ```
 https://<project>.supabase.co/functions/v1/process-articles
 ```
 
-The Edge Function (`supabase/functions/process-articles/index.ts`) runs on Deno and does the following:
+The function (`supabase/functions/process-articles/index.ts`, Deno):
 
-1. Queries all articles where `processed = false` and `body` is not null.
-2. Processes up to **3 articles concurrently** (via `p-limit`) to avoid rate limits.
-3. For each unprocessed article, sends a prompt to **OpenRouter API** (model: `openai/gpt-oss-120b:free`).
-4. Parses the AI's JSON response.
-5. Saves the result into `processed_articles` using UPSERT with `status = "published"`.
-6. Updates `articles.processed = true` for that article.
+1. Checks the `x-cron-secret` header against the `CRON_SECRET` env var (the endpoint is otherwise open — see §6) and returns 401 on mismatch.
+2. Queries articles where `processed = false` and `body` is not null.
+3. Processes up to **3 concurrently** via `p-limit`.
+4. Sends each to **OpenRouter** (model `openai/gpt-oss-120b:free`) with a 60s timeout, **retried up to 3× with backoff** (the free model is flaky).
+5. Parses the AI JSON response.
+6. UPSERTs into `processed_articles` with **`status = "draft"`**.
+7. Sets `articles.processed = true`.
 
-The AI system prompt instructs the model to return JSON with exactly these fields:
-- `teen_headline` — punchy rewritten headline, max 12 words
+The AI is instructed to return JSON with exactly:
+- `teen_headline` — punchy headline, max 12 words
 - `teen_summary` — 2–3 sentence hook
 - `teen_body` — full rewrite in HTML using `<p>` tags
-- `mood` — one of: `wild | heavy | inspiring | sus | lowkey | chaotic | important`
+- `mood` — one of `wild | heavy | inspiring | sus | lowkey | chaotic | important`
 
-### Step D — Admin Reviews (Optional)
+### Step D — Admin Reviews (required)
 
-Admins can log in at `/admin/login` using email and password (Supabase Auth). The admin panel at `/admin` shows all processed articles with their status and lets admins:
+Admins log in at `/admin/login` (Supabase Auth, email + password). The panel at `/admin` lists drafts, published, and rejected articles and lets admins:
 
-- **Approve** a pending article → sets `status = "published"`
-- **Decline** a pending/published article → sets `status = "rejected"`
+- **Approve** → `status = "published"`
+- **Decline / unpublish** → `status = "rejected"`
 
-The admin panel is protected: unauthenticated users are redirected to `/admin/login`.
+Mutations check for errors and surface a banner on failure (no silent optimistic updates). Because every new article is a `draft`, **nothing is public until an admin approves it.**
 
 ### Step E — User Visits the Site
 
-The React frontend is served as a static website. When a user visits:
+The React frontend is a static site talking directly to Supabase:
 
-- **Home page** (`/`): Fetches published processed articles from Supabase, ordered newest first. Displays them as a card grid with mood badges.
-- **Reading page** (`/article/:id`): Fetches one specific processed article (joined with its original article data). Shows the full AI-rewritten content. AI HTML body is sanitized with DOMPurify before rendering.
+- **Home** (`/`): fetches `processed_articles` filtered to `status = 'published'`, newest first; renders a card grid with mood badges. Shows an error state if the fetch fails.
+- **Reading** (`/article/:id`): fetches one processed article joined with its raw article. The AI HTML body is sanitized with DOMPurify. If the row isn't found (e.g. a non-admin requesting a draft, which RLS hides), a "not found" message is shown.
+- **Comments**: posted through the `submit-comment` edge function (see §5), not inserted directly.
 
-All data fetching is done directly from the browser to Supabase using the **Supabase JS client** — there is no separate backend server for the frontend.
+---
 
+## 5. Comments
 
-## 12. Automated Daily Runs
+Guest comments (no account needed) support nested replies. To prevent spam and status tampering, comments are **not** inserted directly from the browser anymore. Instead `apps/web/src/components/comment/Comment.tsx` calls the **`submit-comment` edge function** (`supabase/functions/submit-comment/index.ts`), which:
 
-**Location:** `.github/workflows/scraper.yml`
+1. Reads the client IP from `x-forwarded-for`.
+2. Validates name/content length and the article/parent IDs.
+3. Enforces a per-IP rate limit: a 15-second cooldown and a max of 12 comments/hour, tracked in the `comment_throttle` table.
+4. Inserts the comment with `status` **forced server-side to `published`** (clients can't inject other statuses).
 
-GitHub Actions is a free automation service built into GitHub. Our workflow:
+A 429 (rate-limited) response surfaces a friendly message in the UI. RLS on `comments` removes anon `INSERT` entirely — the service-role edge function is the only writer.
 
-```yaml
-schedule:
-  - cron: '0 3 * * *'   # Every day at 3:00 AM UTC
-```
+---
 
-The workflow steps:
-1. Check out the repository code
-2. Install Node.js 20
-3. Install Linux system dependencies that Puppeteer's Chrome needs (fonts, X11 libraries, etc.)
-4. Install npm packages (`npm ci`)
-5. Run the scraper: `npx tsx scrape/scrape.ts`
-6. Send a POST request to the Supabase Edge Function to trigger AI processing
+## 6. Security Model
 
-Environment variables (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, etc.) are stored as GitHub repository **Secrets** and injected at runtime — they are never visible in the code.
+This is the load-bearing part of the production hardening.
 
-## 13. Database Schema
+### Row Level Security (RLS)
 
-### `articles`
-Raw scraped articles.
+RLS is enabled on `articles`, `processed_articles`, and `comments`. Migration: `supabase/migrations/20260601000000_rls_and_admins.sql`.
 
+- **Public (anon) reads:** `articles` (all), `processed_articles` where `status = 'published'`, `comments` where `status = 'published'`. Drafts and rejected content are invisible to the public **at the database level**.
+- **Writes:** admin-only, gated by an `is_admin()` SQL helper.
+
+The scraper and edge functions use the **service-role key, which bypasses RLS**, so ingestion and AI processing are unaffected.
+
+### Admin identity
+
+A logged-in session is **not** automatically an admin. Admins are rows in an `admins(user_id)` table; `is_admin()` checks membership against `auth.uid()`. The owner is seeded by email in the migration (confirm the email before running). Public **signup is disabled** (`config.toml` `enable_signup = false`, plus the dashboard toggle) so strangers can't create a session at all.
+
+### Edge function access
+
+Both functions run with **`verify_jwt = false`** (`config.toml`) because this project uses the new API key system (`sb_secret_…` / `sb_publishable_…` keys are not JWTs, so the gateway's JWT check would reject them). Access is enforced in-code instead:
+
+- `process-articles` — guarded by the `CRON_SECRET` shared secret (`x-cron-secret` header).
+- `submit-comment` — public by design, protected by input validation + per-IP rate limiting.
+
+Deploy them with: `supabase functions deploy <name> --no-verify-jwt`.
+
+---
+
+## 7. Database Schema
+
+### `articles` — raw scraped articles
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint | Auto-generated primary key |
+| `id` | bigint | Primary key |
 | `url` | text | Unique — prevents duplicate scrapes |
-| `title` | text | Original article title |
+| `title` | text | Original title |
 | `date` | text | Publication date string |
 | `image` | text | Hero image URL |
-| `body` | text | Full article HTML body |
+| `body` | text | Full article HTML |
 | `created_at` | timestamptz | When scraped |
 | `processed` | boolean | `false` until AI processes it |
 
-### `processed_articles`
-AI-rewritten versions of articles.
-
+### `processed_articles` — AI-rewritten versions
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint | Auto-generated primary key |
+| `id` | bigint | Primary key |
 | `article_id` | bigint | FK → `articles.id` (unique) |
-| `teen_headline` | text | AI-rewritten headline |
-| `teen_summary` | text | AI-rewritten 2–3 sentence summary |
-| `teen_body` | text | AI-rewritten full body (HTML) |
+| `teen_headline` | text | AI headline |
+| `teen_summary` | text | AI 2–3 sentence summary |
+| `teen_body` | text | AI full body (HTML) |
 | `mood` | text | One of 7 mood values |
 | `status` | text | `draft`, `approved`, `published`, or `rejected` |
-| `processed_at` | timestamptz | When AI finished processing |
+| `processed_at` | timestamptz | When AI finished |
 
-### `comments`
-User comments on articles.
+> The editor's status dropdown surfaces `draft` / `published` / `rejected` — matching the DB `CHECK` constraint (an earlier version offered invalid values that caused silent save failures).
 
+### `comments` — user comments
 | Column | Type | Notes |
 |---|---|---|
-| `id` | bigint | Auto-generated primary key |
+| `id` | bigint | Primary key |
 | `article_id` | bigint | FK → `articles.id` |
-| `guest_name` | text | Display name (no account needed) |
+| `guest_name` | text | Display name (no account) |
 | `content` | text | Comment text |
-| `status` | text | `pending`, `published`, `hidden`, or `deleted` |
-| `parent_id` | bigint | FK → `comments.id` — for nested replies |
+| `status` | text | `pending`, `published`, `hidden`, or `deleted` (forced to `published` on insert) |
+| `parent_id` | bigint | FK → `comments.id` — nested replies |
 | `created_at` | timestamptz | When posted |
 | `updated_at` | timestamptz | When last modified |
 
-## 14. Project Folder Structure
+### `admins` — admin registry
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | uuid | PK, FK → `auth.users.id` |
+| `created_at` | timestamptz | When granted |
+
+### `comment_throttle` — rate-limit log
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint | Primary key |
+| `ip` | text | Client IP |
+| `article_id` | bigint | Which article |
+| `created_at` | timestamptz | When posted |
+
+**Migrations:**
+- `all.sql` — context-only schema snapshot (not executed).
+- `20260601000000_rls_and_admins.sql` — admins table, `is_admin()`, RLS policies.
+- `20260601000100_comment_throttle.sql` — throttle table, removes anon comment INSERT.
+
+---
+
+## 8. Detailed Folder Structure
 
 ```
-ITelecNEWS/
-│
-├── Client/                        ← React frontend app
-│   └── src/
-│       ├── App.tsx                ← Root component with routes
-│       ├── pages/
-│       │   ├── home/Home.tsx      ← Article grid page
-│       │   ├── reading/Reading.tsx← Individual article page
-│       │   └── admin/
-│       │       ├── Admin.tsx      ← Article moderation dashboard
-│       │       └── AdminLogin.tsx ← Email/password login page
-│       ├── components/
-│       │   ├── UI/
-│       │   │   ├── Navbar/        ← Top nav bar
-│       │   │   ├── Footer/        ← Footer
-│       │   │   └── ScrollBar/     ← Custom scrollbar
-│       │   └── comment/
-│       │       └── Comment.tsx    ← Nested comment system
-│       ├── hooks/
-│       │   └── useScrollSmoother.ts← GSAP smooth scroll setup
-│       ├── lib/
-│       │   ├── supabase.ts        ← Supabase client for the browser
-│       │   └── mood.ts            ← Mood config (colors, Mongolian labels)
-│       └── utility/
-│           └── Comment.ts         ← Flat-to-tree comment converter
-│
-├── Server/                        ← Node.js scraper (runs in CI)
-│   └── scrape/
-│       └── scrape.ts              ← Puppeteer scraping script
-│
-├── supabase/                      ← Database & cloud functions
-│   ├── migrations/
-│   │   ├── all.sql                ← Full database schema snapshot
-│   │   ├── 003_indexes.sql        ← Performance indexes
-│   │   ├── 004_admin_read_policy.sql
-│   │   ├── 005_admin_auth_policies.sql
-│   │   ├── 006_admin_authenticated_select.sql
-│   │   ├── 007_admin_articles_select.sql
-│   │   └── 008_comments_insert_policy.sql
-│   └── functions/
-│       └── process-articles/
-│           └── index.ts           ← Deno AI processing function
-│
-└── .github/workflows/
-    └── scraper.yml                ← GitHub Actions daily automation
+apps/web/                          ← React frontend
+└── src/
+    ├── App.tsx                    ← Root component with routes
+    ├── pages/
+    │   ├── home/Home.tsx          ← Published article grid
+    │   ├── reading/Reading.tsx    ← Single article + admin edit modal
+    │   └── admin/
+    │       ├── Admin.tsx          ← Moderation dashboard
+    │       └── AdminLogin.tsx     ← Email/password login
+    ├── components/
+    │   ├── UI/
+    │   │   ├── Navbar/
+    │   │   └── ScrollBar/
+    │   └── comment/Comment.tsx    ← Nested comments (posts via edge fn)
+    ├── hooks/useScrollSmoother.ts ← GSAP smooth scroll
+    ├── lib/supabase.ts            ← Browser Supabase client (env-validated)
+    └── utils/Comment.ts           ← Flat-to-tree comment converter
+
+apps/scraper/                      ← Node.js scraper (CI / cron)
+├── lib/supabase.ts                ← Service-role client (env-validated)
+└── scrape/scrape.ts               ← Puppeteer scraping script
+
+packages/shared/                   ← Shared TypeScript
+└── src/
+    ├── index.ts                   ← Barrel (re-exports with .js extensions)
+    ├── types.ts                   ← Article / ProcessedArticle / EditForm …
+    └── mood.ts                    ← MOOD_CONFIG + getMoodStyle()
+
+supabase/
+├── migrations/
+│   ├── all.sql
+│   ├── 20260601000000_rls_and_admins.sql
+│   └── 20260601000100_comment_throttle.sql
+└── functions/
+    ├── process-articles/index.ts  ← AI processing (Deno)
+    └── submit-comment/index.ts    ← Rate-limited comment insert (Deno)
+
+.github/workflows/scraper.yml      ← Daily automation (Node 22)
 ```
 
 ---
 
-## 15. Environment Variables & Configuration
+## 9. Environment Variables & Configuration
 
-The app requires several environment variables to connect to external services. They are **never committed to git**.
+Never committed to git. Note that the **scraper uses unprefixed names** while the **web app uses `VITE_`-prefixed names** (Vite only exposes `VITE_*` to the browser).
 
-### Server (scraper)
-
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | The URL of the Supabase project |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key — allows writing to the database |
-
-### Client (frontend, browser)
-
-| Variable | Purpose |
-|---|---|
-| `VITE_SUPABASE_URL` | The URL of the Supabase project |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public (anon) key — safe to expose in the browser |
-
-### Edge Function (Deno, stored in Supabase dashboard)
-
+### Scraper (`apps/scraper`)
 | Variable | Purpose |
 |---|---|
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin key for database writes |
-| `OPENROUTER_API_KEY` | API key for the OpenRouter AI service |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role / secret key — writes to DB, bypasses RLS |
+
+Locally these go in `apps/scraper/.env`. In CI they come from GitHub Actions secrets — **and must be declared in `turbo.json`'s `passThroughEnv` for the `scrape` task**, because Turborepo's strict env mode otherwise filters them out before the task runs.
+
+### Web (`apps/web`, browser)
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public/anon key — safe in the browser |
+
+The web client throws a clear error at startup if either is missing.
+
+### Edge Functions (Supabase dashboard secrets)
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_URL` | Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key for DB writes |
+| `OPENROUTER_API_KEY` | OpenRouter AI key (process-articles) |
+| `CRON_SECRET` | Shared secret guarding the process-articles trigger |
+
+`CRON_SECRET` must also be set as a **GitHub Actions secret** with the same value (the workflow sends it as `x-cron-secret`).
 
 ---
 
-## 16. Mood System
+## 10. Mood System
 
-The AI assigns one of 7 moods to each article. Moods are defined in `Client/src/lib/mood.ts` and displayed as colored badges in Mongolian.
+The AI assigns one of 7 moods. Defined in `packages/shared/src/mood.ts` (`MOOD_CONFIG` + `getMoodStyle()`), rendered as colored badges in Mongolian.
 
 | Mood key | Mongolian label | Color |
 |---|---|---|
@@ -315,6 +387,29 @@ The AI assigns one of 7 moods to each article. Moods are defined in `Client/src/
 | `chaotic` | Эмх замбараагүй | Orange-red |
 | `important` | Чухал | Red |
 
+`getMoodStyle()` falls back to `heavy` for unknown/empty moods.
+
 ---
 
-The whole system runs without any manual intervention after initial setup.
+## 11. Deploy / Rollout Checklist
+
+1. Apply migrations: `supabase db push`.
+2. Confirm the seeded admin email in the RLS migration, and ensure that account exists (log in once first).
+3. Turn **signup OFF** in the Supabase dashboard.
+4. Set `CRON_SECRET` in both GitHub Actions secrets and Supabase function secrets (same value).
+5. Deploy functions:
+   `supabase functions deploy process-articles --no-verify-jwt`
+   `supabase functions deploy submit-comment --no-verify-jwt`
+6. Confirm `OPENROUTER_API_KEY` and service-role secrets are set for the functions.
+7. End-to-end check: scraper → `process-articles` writes `draft` → appears in Admin pending → approve → shows on Home.
+
+---
+
+## 12. Known Follow-ups (not yet done)
+
+- Route-based code-splitting / `manualChunks` for the ~600 kB JS bundle.
+- SEO / server-side rendering + per-article OG tags (currently CSR-only).
+- React error boundary + 404 route.
+- Home pagination (currently capped at 60).
+- Image caching to Supabase Storage (currently hotlinks source `og:image`).
+- Comment moderation UI in the admin panel.
