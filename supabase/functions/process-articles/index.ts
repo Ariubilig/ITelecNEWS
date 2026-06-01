@@ -7,12 +7,19 @@ const supabase = createClient(
 );
 
 const AI_TIMEOUT_MS = 60_000;
+const AI_MAX_ATTEMPTS = 3;
 
 type Article = { id: string; title: string; body: string };
 
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
 
+  // JWT gateway verification is off (verify_jwt = false), so gate the endpoint
+  // with a shared secret that only the cron job knows.
+  const expected = Deno.env.get("CRON_SECRET");
+  if (!expected || req.headers.get("x-cron-secret") !== expected) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
 
   const { data: articles, error: fetchError } = await supabase
     .from("articles")
@@ -52,6 +59,25 @@ Deno.serve(async (_req: Request) => {
   return new Response(JSON.stringify(results), { status });
 });
 
+// Retry the (flaky, free-tier) AI call with linear backoff. Network errors,
+// timeouts, 5xx responses, and malformed output are all worth a retry given the
+// model's nondeterminism; persistent failures bubble up to Promise.allSettled.
+async function processWithAI(title: string, body: string) {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await callOpenRouter(title, body);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < AI_MAX_ATTEMPTS) {
+        console.warn(`AI attempt ${attempt}/${AI_MAX_ATTEMPTS} failed: ${(err as Error).message}`);
+        await new Promise((r) => setTimeout(r, attempt * 1500));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function processArticle(article: Article) {
   const aiOutput = await processWithAI(article.title, article.body);
 
@@ -63,7 +89,8 @@ async function processArticle(article: Article) {
       teen_summary:    aiOutput.teen_summary,
       teen_body:       aiOutput.teen_body,
       mood:            aiOutput.mood,
-      status:          "published",
+      // Land as a draft; an admin reviews and publishes from the Admin screen.
+      status:          "draft",
       processed_at: new Date().toISOString(),
     }, { onConflict: "article_id" });
 
@@ -79,7 +106,7 @@ async function processArticle(article: Article) {
   console.log(`✅ Processed: ${article.title}`);
 }
 
-async function processWithAI(title: string, body: string) {
+async function callOpenRouter(title: string, body: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 

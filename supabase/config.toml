@@ -166,7 +166,9 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# Admins are provisioned manually (see supabase/migrations/*_rls_and_admins.sql);
+# public signup stays off so a logged-in session can't be created by strangers.
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -201,7 +203,7 @@ web3 = 30
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
-enable_signup = true
+enable_signup = false
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
@@ -395,13 +397,18 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
-[functions.generate-plan]
+# Internal cron endpoint. Gateway JWT verification is OFF because this project
+# uses the new API key system (sb_secret_/sb_publishable_ keys are not JWTs);
+# access is instead gated by the CRON_SECRET shared-secret check inside the
+# function. Deploy with: supabase functions deploy process-articles --no-verify-jwt
+[functions.process-articles]
 enabled = true
-verify_jwt = true
-import_map = "./functions/generate-plan/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/generate-plan/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/generate-plan/*.html" ]
+verify_jwt = false
+
+# Public guest-comment endpoint, invoked from the browser with the publishable
+# key (not a JWT), so gateway verification is OFF. The function does its own
+# input validation and per-IP rate limiting.
+# Deploy with: supabase functions deploy submit-comment --no-verify-jwt
+[functions.submit-comment]
+enabled = true
+verify_jwt = false

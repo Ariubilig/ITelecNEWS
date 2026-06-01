@@ -2,25 +2,8 @@ import "./Home.css";
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
-import { getMoodStyle } from "../../lib/mood";
-
-interface Article {
-  id: string | number;
-  title?: string;
-  image?: string;
-  url?: string;
-  date?: string;
-  body?: string;
-}
-
-interface ProcessedArticle {
-  id: string | number;
-  mood?: string;
-  teen_headline?: string;
-  article_id?: string | number;
-  articles?: Article;
-  processed_at?: string;
-}
+import { getMoodStyle } from "@itelecnews/shared";
+import type { Article, ProcessedArticle } from "@itelecnews/shared";
 
 
 function getImage(article: Article | undefined): string | null {
@@ -86,18 +69,23 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 export default function Home() {
   const [articles, setArticles] = useState<ProcessedArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const { data } = await supabase
+        const { data, error: fetchErr } = await supabase
           .from("processed_articles")
           .select("*, articles(*)")
           .eq("status", "published")
           .order("processed_at", { ascending: false })
           .limit(60);
 
+        if (fetchErr) {
+          setError(true);
+          return;
+        }
         setArticles(data ?? []);
       } finally {
         setLoading(false);
@@ -109,6 +97,14 @@ export default function Home() {
     return (
       <div className="home-root">
         <div className="home-loading">Уншиж байна…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="home-root">
+        <div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div>
       </div>
     );
   }

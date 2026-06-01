@@ -9,11 +9,11 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
+    // DOM is needed to type-check the browser-context callbacks passed to
+    // Puppeteer's page.evaluate / page.$$eval (they reference document, etc.).
+    "lib": ["esnext", "DOM"],
     "types": ["node"],
-    // For nodejs:
-    // "lib": ["esnext"],
-    // "types": ["node"],
-    // and npm install -D @types/node
+    "noEmit": true,
 
     // Other Outputs
     "sourceMap": true,
@@ -40,5 +40,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Scope type-checking to the production scraper; scrape/test is scratch code.
+  "include": ["scrape/scrape.ts", "lib/**/*.ts"]
 }

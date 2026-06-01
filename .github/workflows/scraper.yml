@@ -9,13 +9,10 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: Server
-
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
     steps:
       - name: Checkout repo
@@ -25,12 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm install
-
-      - name: Install tsx
-        run: npm install -g tsx
 
       - name: Install Puppeteer dependencies
         run: |
@@ -45,15 +40,13 @@ jobs:
             libxshmfence1 \
             libasound2t64
 
-            
       - name: Run scraper
-        run: tsx scrape/scrape.ts
+        run: npm run scrape
 
       - name: Trigger AI processing
         run: |
           curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-cron-secret: $CRON_SECRET" \
             -H "Content-Type: application/json" \
             --silent \
             --show-error \

@@ -336,6 +336,19 @@ body {
     flex-direction: column;
     gap:            6px;
 }
+.edit-error {
+    margin:        4px 0 0;
+    color:         #f87171;
+    font-size:     14px;
+}
+.reading-empty {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    min-height:      50vh;
+    color:           var(--textS, #8c8c8c);
+    font-size:       1rem;
+}
 .edit-actions {
     display:         flex;
     justify-content: flex-end;

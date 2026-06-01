@@ -43,7 +43,8 @@ export const useScrollSmoother = (
   const location = useLocation();
 
   useEffect(() => {
-    if (!ready || !wrapperRef.current) return;
+    const wrapper = wrapperRef.current;
+    if (!ready || !wrapper) return;
 
     gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -51,11 +52,11 @@ export const useScrollSmoother = (
 
     if (isTouchDevice()) return;
 
-    const content = wrapperRef.current.querySelector("#smooth-content");
+    const content = wrapper.querySelector("#smooth-content");
     if (!content) return;
 
     const smoother = ScrollSmoother.create({
-      wrapper: wrapperRef.current,
+      wrapper,
       content,
       smooth: 1,
       effects: true,
@@ -63,7 +64,7 @@ export const useScrollSmoother = (
       ignoreMobileResize: true,
     });
 
-    wrapperRef.current.style.overflow = "hidden";
+    wrapper.style.overflow = "hidden";
 
     const onResize = () => ScrollTrigger.refresh();
     window.addEventListener("resize", onResize);
@@ -71,11 +72,9 @@ export const useScrollSmoother = (
     return () => {
       smoother.kill();
       window.removeEventListener("resize", onResize);
-      if (wrapperRef.current) {
-        wrapperRef.current.style.overflow = "";
-      }
+      wrapper.style.overflow = "";
     };
-  }, [ready]);
+  }, [ready, wrapperRef]);
 
   useEffect(() => {
     if (isTouchDevice()) return;

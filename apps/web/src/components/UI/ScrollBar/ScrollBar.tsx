@@ -55,7 +55,9 @@ const getScrollY = (): number => getSmoother()?.scrollTop() ?? window.scrollY;
  */
 const scrollTo = (pct: number, max: number): void => {
   const top = Math.max(0, Math.min(1, pct)) * max;
-  getSmoother()?.scrollTo(top, true) ?? window.scrollTo({ top, behavior: "smooth" });
+  const smoother = getSmoother();
+  if (smoother) smoother.scrollTo(top, true);
+  else window.scrollTo({ top, behavior: "smooth" });
 };
 
 export default function ScrollBar() {

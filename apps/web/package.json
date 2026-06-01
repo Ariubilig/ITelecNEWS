@@ -1,5 +1,5 @@
 {
-  "name": "client",
+  "name": "@itelecnews/web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,9 +7,11 @@
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@itelecnews/shared": "*",
     "@supabase/supabase-js": "^2.97.0",
     "dompurify": "^3.4.3",
     "gsap": "^3.15.0",

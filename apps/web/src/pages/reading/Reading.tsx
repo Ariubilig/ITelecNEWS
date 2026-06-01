@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
 import { useParams, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
-import { getMoodStyle, MOOD_CONFIG } from "../../lib/mood";
+import { getMoodStyle, MOOD_CONFIG } from "@itelecnews/shared";
+import type { Article, ProcessedArticle, EditForm } from "@itelecnews/shared";
 
 import BackIcon    from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
@@ -14,35 +15,6 @@ import EditIcon    from "../../assets/edit.svg";
 
 import Comments from '../../components/comment/Comment';
 
-
-interface Article {
-  id: string | number;
-  title?: string;
-  image?: string;
-  url?: string;
-  date?: string;
-  body?: string;
-}
-
-interface ProcessedArticle {
-  id: string | number;
-  article_id?: string | number;
-  status?: string;
-  mood?: string;
-  teen_headline?: string;
-  teen_summary?: string;
-  teen_body?: string;
-  articles?: Article;
-}
-
-interface EditForm {
-  teen_headline: string;
-  teen_summary:  string;
-  teen_body:     string;
-  mood:          string;
-  status:        string;
-  image:         string;
-}
 
 function getImageUrl(article: Article | undefined) {
   return article?.image ?? null;
@@ -56,10 +28,12 @@ export default function Reading() {
   const contentRef  = useRef<HTMLDivElement>(null);
 
   const [item,     setItem]     = useState<ProcessedArticle | null>(null);
+  const [loaded,   setLoaded]   = useState(false);
   const [fabLeft,  setFabLeft]  = useState<number | null>(null);
   const [isAdmin,  setIsAdmin]  = useState(false);
   const [editing,  setEditing]  = useState(false);
   const [saving,   setSaving]   = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     const smoother = ScrollSmoother.get();
@@ -87,12 +61,22 @@ export default function Reading() {
       .select(`*, articles(*)`)
       .eq("id", id)
       .single();
-    setItem(data);
+    return data as ProcessedArticle | null;
   }, [id]);
 
-  useEffect(() => { fetchArticle(); }, [fetchArticle]);
-
   useEffect(() => {
+    let active = true;
+    fetchArticle().then((data) => {
+      if (!active) return;
+      setItem(data);
+      setLoaded(true);
+    });
+    return () => { active = false; };
+  }, [fetchArticle]);
+
+  // Snapshot the current item into the edit form when the editor opens, so
+  // edits always start from the latest fetched values.
+  function openEditor() {
     if (!item) return;
     setEditForm({
       teen_headline: item.teen_headline ?? "",
@@ -102,7 +86,9 @@ export default function Reading() {
       status:        item.status        ?? "published",
       image:         item.articles?.image ?? "",
     });
-  }, [item]);
+    setSaveError("");
+    setEditing(true);
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setIsAdmin(!!data.session));
@@ -149,7 +135,9 @@ export default function Reading() {
   async function handleSave() {
     if (!item) return;
     setSaving(true);
-    await supabase.from("processed_articles").update({
+    setSaveError("");
+
+    const { error: pErr } = await supabase.from("processed_articles").update({
       teen_headline: editForm.teen_headline,
       teen_summary:  editForm.teen_summary,
       teen_body:     editForm.teen_body,
@@ -157,13 +145,21 @@ export default function Reading() {
       status:        editForm.status,
     }).eq("id", item.id);
 
-    if (item.article_id) {
-      await supabase.from("articles").update({
+    let aErr = null;
+    if (!pErr && item.article_id) {
+      ({ error: aErr } = await supabase.from("articles").update({
         image: editForm.image,
-      }).eq("id", item.article_id);
+      }).eq("id", item.article_id));
     }
 
-    await fetchArticle();
+    if (pErr || aErr) {
+      setSaving(false);
+      setSaveError("Хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
+      return;
+    }
+
+    const data = await fetchArticle();
+    setItem(data);
     setSaving(false);
     setEditing(false);
   }
@@ -201,7 +197,7 @@ export default function Reading() {
             <div className="fab-divider" />
             <button
               className="fab-btn fab-btn--edit"
-              onClick={() => setEditing(true)}
+              onClick={openEditor}
               aria-label="Засах"
             >
               <img src={EditIcon} className="fab-icon" alt="" />
@@ -209,6 +205,10 @@ export default function Reading() {
           </>
         )}
       </div>
+
+      {loaded && !item && (
+        <div className="reading-empty">Мэдээ олдсонгүй.</div>
+      )}
 
       {item && (
         <>
@@ -326,11 +326,13 @@ export default function Reading() {
                   onChange={(e) => setField("status", e.target.value)}
                 >
                   <option value="published">Нийтлэгдсэн</option>
-                  <option value="pending">Хүлээгдэж байна</option>
-                  <option value="declined">Татгалзсан</option>
+                  <option value="draft">Хүлээгдэж байна</option>
+                  <option value="rejected">Татгалзсан</option>
                 </select>
               </div>
             </div>
+
+            {saveError && <p className="edit-error">{saveError}</p>}
 
             <div className="edit-actions">
               <button className="edit-btn-ghost" onClick={() => setEditing(false)} disabled={saving}>

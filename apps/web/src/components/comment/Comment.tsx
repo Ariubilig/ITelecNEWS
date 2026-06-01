@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { timeAgo, buildTree } from "../../utils/Comment";
 import type { CommentNode } from "../../utils/Comment";
@@ -32,22 +32,35 @@ function useComments(articleId: string | number) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
+  const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from("comments")
       .select("*")
       .eq("article_id", articleId)
       .eq("status", "published")
       .order("created_at", { ascending: true });
+    return data ?? [];
+  }, [articleId]);
 
-    const comments = data ?? [];
+  useEffect(() => {
+    if (!articleId) return;
+    let active = true;
+    fetchComments().then((comments) => {
+      if (!active) return;
+      setTotal(comments.length);
+      setTree(buildTree(comments));
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [articleId, fetchComments]);
+
+  // Re-fetch on demand (e.g. after a new comment is posted).
+  const load = useCallback(async () => {
+    const comments = await fetchComments();
     setTotal(comments.length);
     setTree(buildTree(comments));
     setLoading(false);
-  };
-
-  useEffect(() => { if (articleId) load(); }, [articleId]);
+  }, [fetchComments]);
 
   return { tree, total, loading, load };
 }
@@ -71,16 +84,30 @@ function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }: Com
     setError("");
     setBusy(true);
 
-    const { error: dbError } = await supabase.from("comments").insert({
-      article_id: articleId,
-      guest_name: trimName,
-      content: trimText,
-      status: "published",
-      ...(parentId ? { parent_id: parentId } : {}),
+    const { error: fnError } = await supabase.functions.invoke("submit-comment", {
+      body: {
+        article_id: articleId,
+        guest_name: trimName,
+        content: trimText,
+        ...(parentId ? { parent_id: parentId } : {}),
+      },
     });
 
     setBusy(false);
-    if (dbError) return setError("Алдаа гарлаа. Дахин оролдоно уу.");
+
+    // A non-2xx (e.g. 429 rate limit) comes back as a FunctionsHttpError whose
+    // .context is the raw Response; pull the server message out when we can.
+    if (fnError) {
+      let msg = "Алдаа гарлаа. Дахин оролдоно уу.";
+      const ctx = (fnError as { context?: Response }).context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const body = await ctx.json();
+          if (body?.error) msg = body.error;
+        } catch { /* keep the generic message */ }
+      }
+      return setError(msg);
+    }
 
     localStorage.setItem("cmt_name", trimName);
     setText("");

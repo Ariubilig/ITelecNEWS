@@ -2,23 +2,8 @@ import "./Admin.css";
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
-import { getMoodStyle } from "../../lib/mood";
-
-interface Article {
-  id: string | number;
-  title?: string;
-  image?: string;
-}
-
-interface ProcessedArticle {
-  id: string | number;
-  status?: string;
-  mood?: string;
-  teen_headline?: string;
-  article_id?: string | number;
-  articles?: Article;
-  processed_at?: string;
-}
+import { getMoodStyle } from "@itelecnews/shared";
+import type { ProcessedArticle } from "@itelecnews/shared";
 
 
 interface AdminCardProps {
@@ -115,6 +100,7 @@ export default function Admin() {
   const [articles, setArticles] = useState<ProcessedArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -127,13 +113,16 @@ export default function Admin() {
   }, [navigate]);
 
   const fetchArticles = async () => {
-    setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error: fetchErr } = await supabase
         .from("processed_articles")
         .select("*, articles(*)")
         .order("processed_at", { ascending: false })
         .limit(200);
+      if (fetchErr) {
+        setError("Мэдээг ачаалахад алдаа гарлаа.");
+        return;
+      }
       setArticles(data ?? []);
     } finally {
       setLoading(false);
@@ -142,19 +131,26 @@ export default function Admin() {
 
   useEffect(() => { if (authed) fetchArticles(); }, [authed]);
 
-  const handleApprove = async (id: string | number) => {
-    await supabase.from("processed_articles").update({ status: "published" }).eq("id", id);
+  const setStatus = async (id: string | number, status: string, failMsg: string) => {
+    setError("");
+    const { error: updateErr } = await supabase
+      .from("processed_articles")
+      .update({ status })
+      .eq("id", id);
+    if (updateErr) {
+      setError(failMsg);
+      return;
+    }
     setArticles((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: "published" } : a))
+      prev.map((a) => (a.id === id ? { ...a, status } : a))
     );
   };
 
-  const handleDecline = async (id: string | number) => {
-    await supabase.from("processed_articles").update({ status: "rejected" }).eq("id", id);
-    setArticles((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: "rejected" } : a))
-    );
-  };
+  const handleApprove = (id: string | number) =>
+    setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
+
+  const handleDecline = (id: string | number) =>
+    setStatus(id, "rejected", "Татгалзахад алдаа гарлаа.");
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -188,6 +184,8 @@ export default function Admin() {
           <button className="admin-logout-btn" onClick={handleLogout}>Гарах</button>
         </div>
       </div>
+
+      {error && <div className="admin-error">{error}</div>}
 
       {articles.length === 0 ? (
         <div className="admin-empty">Одоохондоо мэдээ байхгүй байна.</div>

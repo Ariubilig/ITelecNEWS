@@ -25,6 +25,9 @@ dist-ssr
 *.local
 .env
 
+# Turborepo
+.turbo
+
 newURL.json
 scrapedURL.json
 articles.json
