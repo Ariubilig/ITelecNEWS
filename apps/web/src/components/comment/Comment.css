@@ -226,14 +226,6 @@
   margin-top: 4px;
 }
 
-/* inline reply form */
-.cmt-reply-form {
-  padding: 12px 0 12px 42px;
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
-  margin-left: 20px;
-  margin-bottom: 8px;
-}
-
 /* ── empty / loading states ───────────────────────────────────── */
 
 .cmt-empty {

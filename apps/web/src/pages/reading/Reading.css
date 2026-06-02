@@ -20,49 +20,6 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Nav bar ── */
-.reading-nav {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 20px 0 24px;
-    position: sticky;
-    top: 0;
-    background: color-mix(in srgb, var(--color-bg) 92%, transparent);
-    backdrop-filter: blur(12px);
-    z-index: 10;
-}
-
-.back-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--dividerBg);
-    border: 1px solid var(--dividerBg);
-    border-radius: 8px;
-    color: var(--textS);
-    font-size: 13px;
-    padding: 7px 14px;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    font-family: inherit;
-}
-.back-btn:hover {
-    background: var(--dividerBg);
-    color: var(--textDefault);
-    border-color: #3b82f6;
-}
-.back-arrow { font-size: 16px; line-height: 1; }
-
-.nav-logo {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--textDefault);
-    margin-left: auto;
-    letter-spacing: -0.3px;
-}
-.nav-logo span { color: #3b82f6; }
-
 /* ── Hero image ── */
 .hero-wrap {
     position: relative;
@@ -157,49 +114,6 @@ body {
 .article-body p:last-child {
     margin-bottom: 0;
 }
-
-/* ── Source link ── */
-.source-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 40px;
-    font-size: 13px;
-    color: var(--link-color);
-    text-decoration: none;
-    border: 1px solid var(--dividerBg);
-    padding: 8px 16px;
-    border-radius: 8px;
-    background: var(--dividerBg);
-    transition: all 0.18s ease;
-}
-.source-link:hover {
-    background: var(--dividerBg);
-    color: var(--link-hover);
-    border-color: var(--divider);
-}
-
-/* ── States ── */
-.state-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    gap: 16px;
-    color: var(--textS);
-}
-.state-spinner {
-    width: 36px;
-    height: 36px;
-    border: 3px solid var(--dividerBg);
-    border-top-color: #3b82f6;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.state-text { font-size: 14px; }
-.state-error { color: #ef4444; font-size: 14px; }
 
 @media (max-width: 600px) {
     .hero-wrap { height: 220px; }
