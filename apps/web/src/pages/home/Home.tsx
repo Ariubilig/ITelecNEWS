@@ -41,14 +41,12 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 
         <div className="card-overlay-content">
           <h2 className="card-headline">{headline}</h2>
-          {mood && (
-            <span
-              className="mood-badge"
-              style={{ color: mood.color, background: mood.bg, borderColor: mood.border }}
-            >
-              {mood.label}
-            </span>
-          )}
+          <span
+            className="mood-badge"
+            style={{ color: mood.color, background: mood.bg, borderColor: mood.border }}
+          >
+            {mood.label}
+          </span>
         </div>
       </div>
     </article>

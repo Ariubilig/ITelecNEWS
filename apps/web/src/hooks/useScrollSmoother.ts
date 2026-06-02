@@ -37,14 +37,13 @@ const isTouchDevice = () => window.matchMedia("(pointer: coarse)").matches;
 
 export const useScrollSmoother = (
   wrapperRef: React.RefObject<HTMLElement | null>,
-  ready = true,
 ) => {
 
   const location = useLocation();
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
-    if (!ready || !wrapper) return;
+    if (!wrapper) return;
 
     gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -74,7 +73,7 @@ export const useScrollSmoother = (
       window.removeEventListener("resize", onResize);
       wrapper.style.overflow = "";
     };
-  }, [ready, wrapperRef]);
+  }, [wrapperRef]);
 
   useEffect(() => {
     if (isTouchDevice()) return;
