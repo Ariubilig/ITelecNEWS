@@ -4,6 +4,9 @@ import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ProcessedArticle } from "@itelecnews/shared";
+import { useQuery } from "../../lib/useQuery";
+import { allArticles } from "../../lib/queries";
+import { FallbackImage } from "../../components/UI/FallbackImage";
 
 
 interface AdminCardProps {
@@ -18,8 +21,6 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
   const article   = item.articles;
   const mood      = getMoodStyle(item.mood);
   const headline  = item.teen_headline || article?.title || "Гарчиг байхгүй";
-  const imageUrl  = article?.image ?? null;
-  const [imgFailed, setImgFailed] = useState(false);
   const isPending = item.status !== "published";
 
   return (
@@ -35,17 +36,12 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
         onKeyDown={(e) => e.key === "Enter" && navigate(`/article/${item.id}`)}
         style={{ cursor: "pointer" }}
       >
-        {imageUrl && !imgFailed ? (
-          <img
-            src={imageUrl}
-            alt={headline}
-            className="admin-card-img"
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="admin-card-img-empty" aria-hidden="true" />
-        )}
+        <FallbackImage
+          src={article?.image ?? null}
+          alt={headline}
+          className="admin-card-img"
+          fallbackClassName="admin-card-img-empty"
+        />
 
         <div className="admin-card-img-overlay" />
 
@@ -97,10 +93,8 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const [articles, setArticles] = useState<ProcessedArticle[]>([]);
-  const [loading, setLoading] = useState(true);
   const [authed, setAuthed] = useState(false);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -112,37 +106,24 @@ export default function Admin() {
     });
   }, [navigate]);
 
-  const fetchArticles = async () => {
-    try {
-      const { data, error: fetchErr } = await supabase
-        .from("processed_articles")
-        .select("*, articles(*)")
-        .order("processed_at", { ascending: false })
-        .limit(200);
-      if (fetchErr) {
-        setError("Мэдээг ачаалахад алдаа гарлаа.");
-        return;
-      }
-      setArticles(data ?? []);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { if (authed) fetchArticles(); }, [authed]);
+  // Only fetch once authed; useQuery stays in the loading state until then.
+  const { data, loading, error: loadError, setData } =
+    useQuery<ProcessedArticle[]>(allArticles, [authed], authed);
+  const articles = data ?? [];
+  const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
 
   const setStatus = async (id: string | number, status: string, failMsg: string) => {
-    setError("");
+    setActionError("");
     const { error: updateErr } = await supabase
       .from("processed_articles")
       .update({ status })
       .eq("id", id);
     if (updateErr) {
-      setError(failMsg);
+      setActionError(failMsg);
       return;
     }
-    setArticles((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a))
+    setData((prev) =>
+      (prev ?? []).map((a) => (a.id === id ? { ...a, status } : a))
     );
   };
 

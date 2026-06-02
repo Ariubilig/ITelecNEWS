@@ -1,14 +1,11 @@
 import "./Home.css";
-import React, { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
-import type { Article, ProcessedArticle } from "@itelecnews/shared";
-
-
-function getImage(article: Article | undefined): string | null {
-  return article?.image ?? null;
-}
+import type { ProcessedArticle } from "@itelecnews/shared";
+import { useQuery } from "../../lib/useQuery";
+import { publishedArticles } from "../../lib/queries";
+import { FallbackImage } from "../../components/UI/FallbackImage";
 
 
 interface ArticleCardProps {
@@ -21,8 +18,6 @@ function ArticleCard({ item, index }: ArticleCardProps) {
   const article  = item.articles;
   const mood     = getMoodStyle(item.mood);
   const headline = item.teen_headline || article?.title || "Гарчиг байхгүй";
-  const imageUrl = getImage(article);
-  const [imgFailed, setImgFailed] = useState(false);
 
   return (
     <article
@@ -35,17 +30,12 @@ function ArticleCard({ item, index }: ArticleCardProps) {
       onKeyDown={(e) => e.key === "Enter" && navigate(`/article/${item.id}`)}
     >
       <div className="card-img-wrap">
-        {imageUrl && !imgFailed ? (
-          <img
-            src={imageUrl}
-            alt={headline}
-            className="card-img"
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-          />
-        ) : (
-          <div className="card-img-empty" aria-hidden="true" />
-        )}
+        <FallbackImage
+          src={article?.image ?? null}
+          alt={headline}
+          className="card-img"
+          fallbackClassName="card-img-empty"
+        />
 
         <div className="card-img-overlay" />
 
@@ -67,31 +57,8 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 
 
 export default function Home() {
-  const [articles, setArticles] = useState<ProcessedArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const { data, error: fetchErr } = await supabase
-          .from("processed_articles")
-          .select("*, articles(*)")
-          .eq("status", "published")
-          .order("processed_at", { ascending: false })
-          .limit(60);
-
-        if (fetchErr) {
-          setError(true);
-          return;
-        }
-        setArticles(data ?? []);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const { data, loading, error } = useQuery<ProcessedArticle[]>(publishedArticles, []);
+  const articles = data ?? [];
 
   if (loading) {
     return (

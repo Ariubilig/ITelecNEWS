@@ -1,12 +1,14 @@
 import './Reading.css'
 import { supabase } from "../../lib/supabase";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
 import { useParams, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { getMoodStyle, MOOD_CONFIG } from "@itelecnews/shared";
-import type { Article, ProcessedArticle, EditForm } from "@itelecnews/shared";
+import type { ProcessedArticle, EditForm } from "@itelecnews/shared";
+import { useQuery } from "../../lib/useQuery";
+import { articleById } from "../../lib/queries";
 
 import BackIcon    from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
@@ -16,19 +18,15 @@ import EditIcon    from "../../assets/edit.svg";
 import Comments from '../../components/comment/Comment';
 
 
-function getImageUrl(article: Article | undefined) {
-  return article?.image ?? null;
-}
-
-
 export default function Reading() {
 
   const { id }      = useParams();
   const navigate    = useNavigate();
   const contentRef  = useRef<HTMLDivElement>(null);
 
-  const [item,     setItem]     = useState<ProcessedArticle | null>(null);
-  const [loaded,   setLoaded]   = useState(false);
+  const { data: item, loading, refetch } =
+    useQuery<ProcessedArticle>(() => articleById(id!), [id]);
+
   const [fabLeft,  setFabLeft]  = useState<number | null>(null);
   const [isAdmin,  setIsAdmin]  = useState(false);
   const [editing,  setEditing]  = useState(false);
@@ -54,25 +52,6 @@ export default function Reading() {
     status:        "published",
     image:         "",
   });
-
-  const fetchArticle = useCallback(async () => {
-    const { data } = await supabase
-      .from("processed_articles")
-      .select(`*, articles(*)`)
-      .eq("id", id)
-      .single();
-    return data as ProcessedArticle | null;
-  }, [id]);
-
-  useEffect(() => {
-    let active = true;
-    fetchArticle().then((data) => {
-      if (!active) return;
-      setItem(data);
-      setLoaded(true);
-    });
-    return () => { active = false; };
-  }, [fetchArticle]);
 
   // Snapshot the current item into the edit form when the editor opens, so
   // edits always start from the latest fetched values.
@@ -114,7 +93,7 @@ export default function Reading() {
   }, [item]);
 
   const article  = item?.articles;
-  const imageUrl = getImageUrl(article);
+  const imageUrl = article?.image ?? null;
   const mood     = getMoodStyle(item?.mood);
   const headline = item?.teen_headline || article?.title || "Гарчиг байхгүй";
   const summary  = item?.teen_summary;
@@ -158,8 +137,9 @@ export default function Reading() {
       return;
     }
 
-    const data = await fetchArticle();
-    setItem(data);
+    // Save already succeeded; refresh the displayed article in the background
+    // and close the editor.
+    refetch();
     setSaving(false);
     setEditing(false);
   }
@@ -206,7 +186,7 @@ export default function Reading() {
         )}
       </div>
 
-      {loaded && !item && (
+      {!loading && !item && (
         <div className="reading-empty">Мэдээ олдсонгүй.</div>
       )}
 

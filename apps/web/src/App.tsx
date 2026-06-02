@@ -2,11 +2,11 @@ import './App.css'
 import { Routes, Route } from "react-router-dom";
 import { useRef, lazy, Suspense } from "react";
 
+const Reading = lazy(() => import('./pages/reading/Reading'));
 const Admin = lazy(() => import('./pages/admin/Admin'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 
 import Home from "./pages/home/Home";
-import Reading from './pages/reading/Reading';
 import Navbar from './components/UI/Navbar/Navbar';
 import ScrollBar from './components/UI/ScrollBar/ScrollBar';
 

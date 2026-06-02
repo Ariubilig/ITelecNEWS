@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { useQuery } from "../../lib/useQuery";
+import { commentsFor } from "../../lib/queries";
 import { timeAgo, buildTree } from "../../utils/Comment";
-import type { CommentNode } from "../../utils/Comment";
+import type { CommentFlat, CommentNode } from "../../utils/Comment";
 import "./Comment.css";
 
 
@@ -24,45 +26,6 @@ interface CommentCardProps {
 
 interface CommentsProps {
   articleId: string | number | undefined;
-}
-
-
-function useComments(articleId: string | number) {
-  const [tree, setTree] = useState<CommentNode[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  const fetchComments = useCallback(async () => {
-    const { data } = await supabase
-      .from("comments")
-      .select("*")
-      .eq("article_id", articleId)
-      .eq("status", "published")
-      .order("created_at", { ascending: true });
-    return data ?? [];
-  }, [articleId]);
-
-  useEffect(() => {
-    if (!articleId) return;
-    let active = true;
-    fetchComments().then((comments) => {
-      if (!active) return;
-      setTotal(comments.length);
-      setTree(buildTree(comments));
-      setLoading(false);
-    });
-    return () => { active = false; };
-  }, [articleId, fetchComments]);
-
-  // Re-fetch on demand (e.g. after a new comment is posted).
-  const load = useCallback(async () => {
-    const comments = await fetchComments();
-    setTotal(comments.length);
-    setTree(buildTree(comments));
-    setLoading(false);
-  }, [fetchComments]);
-
-  return { tree, total, loading, load };
 }
 
 
@@ -200,14 +163,20 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
 
 
 export default function Comments({ articleId }: CommentsProps) {
-  const { tree, total, loading, load } = useComments(articleId!);
+  const { data, loading, refetch } = useQuery<CommentFlat[]>(
+    () => commentsFor(articleId!),
+    [articleId],
+    !!articleId,
+  );
+  const total = data?.length ?? 0;
+  const tree = useMemo(() => buildTree(data ?? []), [data]);
   const [replyTo, setReplyTo] = useState<string | number | null>(null);
 
   if (!articleId) return null;
 
   const toggleReply = (id: string | number | null) =>
     setReplyTo((prev) => (prev === id ? null : id));
-  const handlePosted = () => { setReplyTo(null); load(); };
+  const handlePosted = () => { setReplyTo(null); refetch(); };
 
   return (
     <section className="cmt-root" id="comments">
