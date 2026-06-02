@@ -1,13 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { env } from '@itelecnews/env/web';
 
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY environment variable",
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// env is validated by @itelecnews/env; presence + URL shape are guaranteed here.
+export const supabase = createClient(
+  env.VITE_SUPABASE_URL,
+  env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);

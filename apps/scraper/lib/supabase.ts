@@ -1,24 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-dotenv.config();
+import { env } from '@itelecnews/env/server';
 
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseSecretKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const missing = [
-  !supabaseUrl && "SUPABASE_URL",
-  !supabaseSecretKey && "SUPABASE_SERVICE_ROLE_KEY",
-].filter(Boolean);
-
-if (missing.length > 0) {
-  throw new Error(
-    `Missing required environment variable(s): ${missing.join(", ")}. ` +
-    `In CI these come from GitHub Actions secrets; locally, put them in apps/scraper/.env`,
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseSecretKey);
+// env is validated at import time (see @itelecnews/env). Make sure `process.env`
+// is populated first — scrape.ts loads dotenv before anything reaches this module.
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 
 export default supabase

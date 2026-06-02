@@ -1,3 +1,4 @@
+import "dotenv/config"; // must be first: populates process.env before @itelecnews/env validates
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import type { ScrapedArticle } from "@itelecnews/shared";
 import supabase from "../lib/supabase.js";
