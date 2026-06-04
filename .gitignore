@@ -31,3 +31,6 @@ dist-ssr
 newURL.json
 scrapedURL.json
 articles.json
+
+.temp
+migrations
