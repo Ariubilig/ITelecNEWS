@@ -3,6 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ProcessedArticle } from "@itelecnews/shared";
+
 import { useQuery } from "../../lib/useQuery";
 import { publishedArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
@@ -18,16 +19,16 @@ function ArticleCard({ item, index }: ArticleCardProps) {
   const article  = item.articles;
   const mood     = getMoodStyle(item.mood);
   const headline = item.teen_headline || article?.title || "Гарчиг байхгүй";
+  const open     = () => navigate(`/article/${item.id}`);
 
   return (
     <article
       className="card"
-      // Cast needed because CSS custom properties aren't in the CSSProperties type
       style={{ "--delay": `${index * 55}ms` } as React.CSSProperties}
-      onClick={() => navigate(`/article/${item.id}`)}
+      onClick={open}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && navigate(`/article/${item.id}`)}
+      onKeyDown={(e) => e.key === "Enter" && open()}
     >
       <div className="card-img-wrap">
         <FallbackImage
@@ -59,27 +60,13 @@ export default function Home() {
   const articles = data ?? [];
 
   if (loading) {
-    return (
-      <div className="home-root">
-        <div className="home-loading">Уншиж байна…</div>
-      </div>
-    );
+    return <div className="home-root"><div className="home-loading">Уншиж байна…</div></div>;
   }
-
   if (error) {
-    return (
-      <div className="home-root">
-        <div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div>
-      </div>
-    );
+    return <div className="home-root"><div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div></div>;
   }
-
   if (articles.length === 0) {
-    return (
-      <div className="home-root">
-        <div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div>
-      </div>
-    );
+    return <div className="home-root"><div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div></div>;
   }
 
   return (

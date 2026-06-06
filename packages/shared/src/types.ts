@@ -38,3 +38,13 @@ export interface EditForm {
   status: string;
   image: string;
 }
+
+/** A row from the `comments` table. */
+export interface Comment {
+  id: number;
+  article_id: number;
+  parent_id: number | null;
+  guest_name: string;
+  content: string;
+  created_at: string;
+}

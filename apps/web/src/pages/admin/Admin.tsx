@@ -1,27 +1,33 @@
 import "./Admin.css";
 import React, { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ProcessedArticle } from "@itelecnews/shared";
+
+import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
+import { useSession } from "../../hooks/useSession";
 import { allArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
+
+type Id = string | number;
 
 
 interface AdminCardProps {
   item: ProcessedArticle;
   index: number;
-  onApprove: (id: string | number) => void;
-  onDecline: (id: string | number) => void;
+  onApprove: (id: Id) => void;
+  onDecline: (id: Id) => void;
 }
 
 function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const article   = item.articles;
   const mood      = getMoodStyle(item.mood);
   const headline  = item.teen_headline || article?.title || "Гарчиг байхгүй";
   const isPending = item.status !== "published";
+
+  const open = () => navigate(`/article/${item.id}`);
 
   return (
     <article
@@ -30,10 +36,10 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
     >
       <div
         className="admin-card-img-wrap"
-        onClick={() => navigate(`/article/${item.id}`)}
+        onClick={open}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && navigate(`/article/${item.id}`)}
+        onKeyDown={(e) => e.key === "Enter" && open()}
         style={{ cursor: "pointer" }}
       >
         <FallbackImage
@@ -64,24 +70,15 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
       <div className="admin-card-actions">
         {isPending ? (
           <>
-            <button
-              className="action-btn action-btn--approve"
-              onClick={() => onApprove(item.id)}
-            >
+            <button className="action-btn action-btn--approve" onClick={() => onApprove(item.id)}>
               Зөвшөөрөх
             </button>
-            <button
-              className="action-btn action-btn--decline"
-              onClick={() => onDecline(item.id)}
-            >
+            <button className="action-btn action-btn--decline" onClick={() => onDecline(item.id)}>
               Татгалзах
             </button>
           </>
         ) : (
-          <button
-            className="action-btn action-btn--decline"
-            onClick={() => onDecline(item.id)}
-          >
+          <button className="action-btn action-btn--decline" onClick={() => onDecline(item.id)}>
             Буцаах
           </button>
         )}
@@ -93,18 +90,14 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const [authed, setAuthed] = useState(false);
+  const { session, loading: authLoading } = useSession();
+  const authed = !!session;
+
   const [actionError, setActionError] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        navigate("/admin/login");
-      } else {
-        setAuthed(true);
-      }
-    });
-  }, [navigate]);
+    if (!authLoading && !authed) navigate("/admin/login");
+  }, [authLoading, authed, navigate]);
 
   // Only fetch once authed; useQuery stays in the loading state until then.
   const { data, loading, error: loadError, setData } =
@@ -112,7 +105,7 @@ export default function Admin() {
   const articles = data ?? [];
   const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
 
-  const setStatus = async (id: string | number, status: string, failMsg: string) => {
+  const setStatus = async (id: Id, status: string, failMsg: string) => {
     setActionError("");
     const { error: updateErr } = await supabase
       .from("processed_articles")
@@ -122,17 +115,11 @@ export default function Admin() {
       setActionError(failMsg);
       return;
     }
-    setData((prev) =>
-      (prev ?? []).map((a) => (a.id === id ? { ...a, status } : a))
-    );
+    setData((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, status } : a)));
   };
 
-  const handleApprove = (id: string | number) =>
-    setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
-
-  const handleDecline = (id: string | number) =>
-    setStatus(id, "rejected", "Татгалзахад алдаа гарлаа.");
-
+  const handleApprove = (id: Id) => setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
+  const handleDecline = (id: Id) => setStatus(id, "rejected",  "Татгалзахад алдаа гарлаа.");
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/admin/login");

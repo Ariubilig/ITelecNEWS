@@ -258,7 +258,7 @@ Deploy them with: `supabase functions deploy <name> --no-verify-jwt`.
 | `teen_summary` | text | AI 2–3 sentence summary |
 | `teen_body` | text | AI full body (HTML) |
 | `mood` | text | One of 7 mood values |
-| `status` | text | `draft`, `approved`, `published`, or `rejected` |
+| `status` | text | `draft`, `published`, or `rejected` |
 | `processed_at` | timestamptz | When AI finished |
 
 > The editor's status dropdown surfaces `draft` / `published` / `rejected` — matching the DB `CHECK` constraint (an earlier version offered invalid values that caused silent save failures).
@@ -290,9 +290,8 @@ Deploy them with: `supabase functions deploy <name> --no-verify-jwt`.
 | `created_at` | timestamptz | When posted |
 
 **Migrations:**
-- `all.sql` — context-only schema snapshot (not executed).
-- `20260601000000_rls_and_admins.sql` — admins table, `is_admin()`, RLS policies.
-- `20260601000100_comment_throttle.sql` — throttle table, removes anon comment INSERT.
+- `supabase/tables.sql` — context-only schema snapshot (not executed). Mirrors the columns the app code reads/writes.
+- `supabase/migrations/` — the actual migration files. **Gitignored locally** (kept out of version control by `.gitignore`); apply with `supabase db push`. Includes the RLS policies, `admins` table, `is_admin()` helper, and the `comment_throttle` table.
 
 ---
 
@@ -304,18 +303,26 @@ apps/web/                          ← React frontend
     ├── App.tsx                    ← Root component with routes
     ├── pages/
     │   ├── home/Home.tsx          ← Published article grid
-    │   ├── reading/Reading.tsx    ← Single article + admin edit modal
+    │   ├── reading/
+    │   │   ├── Reading.tsx        ← Single article view
+    │   │   └── EditArticleModal.tsx ← Admin edit modal
     │   └── admin/
     │       ├── Admin.tsx          ← Moderation dashboard
     │       └── AdminLogin.tsx     ← Email/password login
     ├── components/
     │   ├── UI/
     │   │   ├── Navbar/
-    │   │   └── ScrollBar/
+    │   │   ├── ScrollBar/
+    │   │   └── FallbackImage.tsx  ← Image with placeholder fallback
     │   └── comment/Comment.tsx    ← Nested comments (posts via edge fn)
-    ├── hooks/useScrollSmoother.ts ← GSAP smooth scroll
-    ├── lib/supabase.ts            ← Browser Supabase client (env-validated)
-    └── utils/Comment.ts           ← Flat-to-tree comment converter
+    ├── hooks/
+    │   ├── useScrollSmoother.ts   ← GSAP smooth scroll
+    │   └── useSession.ts          ← Supabase auth session subscription
+    └── lib/
+        ├── supabase.ts            ← Browser Supabase client (env-validated)
+        ├── queries.ts             ← Central Supabase reads
+        ├── useQuery.ts            ← Tiny data-fetch hook
+        └── comments.ts            ← Flat-to-tree + timeAgo helpers
 
 apps/scraper/                      ← Node.js scraper (CI / cron)
 ├── lib/supabase.ts                ← Service-role client (env-validated)
@@ -328,13 +335,11 @@ packages/shared/                   ← Shared TypeScript
     └── mood.ts                    ← MOOD_CONFIG + getMoodStyle()
 
 supabase/
-├── migrations/
-│   ├── all.sql
-│   ├── 20260601000000_rls_and_admins.sql
-│   └── 20260601000100_comment_throttle.sql
+├── tables.sql                    ← Schema snapshot (context only)
+├── migrations/                   ← Gitignored locally; applied with `supabase db push`
 └── functions/
-    ├── process-articles/index.ts  ← AI processing (Deno)
-    └── submit-comment/index.ts    ← Rate-limited comment insert (Deno)
+    ├── process-articles/index.ts ← AI processing (Deno)
+    └── submit-comment/index.ts   ← Rate-limited comment insert (Deno)
 
 .github/workflows/scraper.yml      ← Daily automation (Node 22)
 ```

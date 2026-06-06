@@ -81,6 +81,4 @@ export const useScrollSmoother = (
     ScrollSmoother.get()?.scrollTop(0);
     ScrollTrigger.refresh();
   }, [location.pathname]);
-
-  
 };

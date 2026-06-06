@@ -1,17 +1,20 @@
 import "./AdminLogin.css";
 import { useState } from "react";
-import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password) return setError("И-мэйл болон нууц үг оруулна уу.");
+  async function handleLogin() {
+    if (!email.trim() || !password) {
+      setError("И-мэйл болон нууц үг оруулна уу.");
+      return;
+    }
     setError("");
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({
@@ -19,9 +22,13 @@ export default function AdminLogin() {
       password,
     });
     setLoading(false);
-    if (authError) return setError("И-мэйл эсвэл нууц үг буруу байна.");
+
+    if (authError) {
+      setError("И-мэйл эсвэл нууц үг буруу байна.");
+      return;
+    }
     navigate("/admin");
-  };
+  }
 
   return (
     <div className="login-root">

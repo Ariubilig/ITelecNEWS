@@ -1,31 +1,33 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Comment } from "@itelecnews/shared";
 import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
 import { commentsFor } from "../../lib/queries";
-import { timeAgo, buildTree } from "../../utils/Comment";
-import type { CommentFlat, CommentNode } from "../../utils/Comment";
+import { buildTree, timeAgo, type CommentNode } from "../../lib/comments";
 import "./Comment.css";
 
 
+type Id = string | number;
+
 interface ComposeFormProps {
-  articleId: string | number;
-  parentId: string | number | null;
-  onPosted: () => void;
+  articleId: Id;
+  parentId:  Id | null;
+  onPosted:  () => void;
   onCancel?: () => void;
   autoFocus?: boolean;
 }
 
 interface CommentCardProps {
-  comment: CommentNode;
-  replyTo: string | number | null;
-  onReply: (id: string | number | null) => void;
-  onPosted: () => void;
-  articleId: string | number;
-  depth?: number;
+  comment:   CommentNode;
+  replyTo:   Id | null;
+  onReply:   (id: Id | null) => void;
+  onPosted:  () => void;
+  articleId: Id;
+  depth?:    number;
 }
 
 interface CommentsProps {
-  articleId: string | number | undefined;
+  articleId: Id | undefined;
 }
 
 
@@ -116,16 +118,16 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
 
   return (
     <div className={`cmt-card depth-${Math.min(depth, 2)}`}>
-      <div className="cmt-avatar">{String(comment.guest_name)?.[0]?.toUpperCase() ?? "?"}</div>
+      <div className="cmt-avatar">{comment.guest_name[0]?.toUpperCase() ?? "?"}</div>
 
       <div className="cmt-body">
         <div className="cmt-meta">
-          <span className="cmt-name">{String(comment.guest_name)}</span>
+          <span className="cmt-name">{comment.guest_name}</span>
           <span className="cmt-dot" />
-          <span className="cmt-time">{timeAgo(String(comment.created_at))}</span>
+          <span className="cmt-time">{timeAgo(comment.created_at)}</span>
         </div>
 
-        <p className="cmt-text">{String(comment.content)}</p>
+        <p className="cmt-text">{comment.content}</p>
 
         <button className="cmt-reply-btn" onClick={() => onReply(isReplying ? null : comment.id)}>
           {isReplying ? "Болих" : "Хариу өгөх"}
@@ -142,11 +144,11 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
         )}
       </div>
 
-      {comment.replies?.length > 0 && (
+      {comment.replies.length > 0 && (
         <div className="cmt-replies">
           {comment.replies.map((r) => (
             <CommentCard
-              key={String(r.id)}
+              key={r.id}
               comment={r}
               replyTo={replyTo}
               onReply={onReply}
@@ -163,19 +165,17 @@ function CommentCard({ comment, replyTo, onReply, onPosted, articleId, depth = 0
 
 
 export default function Comments({ articleId }: CommentsProps) {
-  const { data, loading, refetch } = useQuery<CommentFlat[]>(
+  const { data, loading, refetch } = useQuery<Comment[]>(
     () => commentsFor(articleId!),
     [articleId],
     !!articleId,
   );
-  const total = data?.length ?? 0;
   const tree = useMemo(() => buildTree(data ?? []), [data]);
-  const [replyTo, setReplyTo] = useState<string | number | null>(null);
+  const [replyTo, setReplyTo] = useState<Id | null>(null);
 
   if (!articleId) return null;
 
-  const toggleReply = (id: string | number | null) =>
-    setReplyTo((prev) => (prev === id ? null : id));
+  const toggleReply = (id: Id | null) => setReplyTo((prev) => (prev === id ? null : id));
   const handlePosted = () => { setReplyTo(null); refetch(); };
 
   return (
@@ -184,7 +184,7 @@ export default function Comments({ articleId }: CommentsProps) {
 
       <div className="cmt-header">
         <h2 className="cmt-title">Сэтгэгдэл</h2>
-        {!loading && <span className="cmt-count">{total}</span>}
+        {!loading && <span className="cmt-count">{data?.length ?? 0}</span>}
       </div>
 
       <ComposeForm articleId={articleId} parentId={null} onPosted={handlePosted} />
@@ -199,7 +199,7 @@ export default function Comments({ articleId }: CommentsProps) {
         <div className="cmt-list">
           {tree.map((c) => (
             <CommentCard
-              key={String(c.id)}
+              key={c.id}
               comment={c}
               replyTo={replyTo}
               onReply={toggleReply}

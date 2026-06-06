@@ -3,22 +3,24 @@ import pLimit from "https://esm.sh/p-limit@6";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-const AI_TIMEOUT_MS = 60_000;
-const AI_MAX_ATTEMPTS = 3;
+const AI_TIMEOUT_MS    = 60_000;
+const AI_MAX_ATTEMPTS  = 3;
+const CONCURRENCY      = 3;
+const REQUIRED_FIELDS  = ["teen_headline", "teen_summary", "teen_body", "mood"] as const;
 
 type Article = { id: string; title: string; body: string };
+type AiOutput = { teen_headline: string; teen_summary: string; teen_body: string; mood: string };
 
 
 Deno.serve(async (req: Request) => {
-
-  // JWT gateway verification is off (verify_jwt = false), so gate the endpoint
-  // with a shared secret that only the cron job knows.
+  // JWT gateway verification is off (verify_jwt = false), so gate with a shared
+  // secret only the cron job knows.
   const expected = Deno.env.get("CRON_SECRET");
   if (!expected || req.headers.get("x-cron-secret") !== expected) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    return json({ error: "Unauthorized" }, 401);
   }
 
   const { data: articles, error: fetchError } = await supabase
@@ -29,84 +31,63 @@ Deno.serve(async (req: Request) => {
 
   if (fetchError) {
     console.error("Fetch error:", fetchError);
-    return new Response(JSON.stringify({ error: fetchError.message }), { status: 500 });
+    return json({ error: fetchError.message }, 500);
   }
-
-  if (!articles || articles.length === 0) {
+  if (!articles?.length) {
     console.log("No unprocessed articles found.");
-    return new Response(JSON.stringify({ processed: 0 }), { status: 200 });
+    return json({ processed: 0 });
   }
 
   console.log(`Processing ${articles.length} articles...`);
 
-  const results = { success: 0, failed: 0 };
-
-  const limit = pLimit(3);
+  const limit = pLimit(CONCURRENCY);
   const settled = await Promise.allSettled(
-    articles.map((article: Article) => limit(() => processArticle(article)))
+    articles.map((a: Article) => limit(() => processArticle(a))),
   );
 
-  for (const outcome of settled) {
-    if (outcome.status === "fulfilled") results.success++;
+  const results = { success: 0, failed: 0 };
+  for (const o of settled) {
+    if (o.status === "fulfilled") results.success++;
     else {
       results.failed++;
-      console.error("❌ Article failed:", outcome.reason);
+      console.error("❌ Article failed:", o.reason);
     }
   }
 
-  // 200 on full/partial success, 500 only when every article failed
-  const status = results.success === 0 && results.failed > 0 ? 500 : 200;
-  return new Response(JSON.stringify(results), { status });
+  // 200 on full/partial success; 500 only when every article failed.
+  const status = results.success === 0 ? 500 : 200;
+  return json(results, status);
 });
 
-// Retry the (flaky, free-tier) AI call with linear backoff. Network errors,
-// timeouts, 5xx responses, and malformed output are all worth a retry given the
-// model's nondeterminism; persistent failures bubble up to Promise.allSettled.
-async function processWithAI(title: string, body: string) {
-  let lastErr: unknown;
-  for (let attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
-    try {
-      return await callOpenRouter(title, body);
-    } catch (err) {
-      lastErr = err;
-      if (attempt < AI_MAX_ATTEMPTS) {
-        console.warn(`AI attempt ${attempt}/${AI_MAX_ATTEMPTS} failed: ${(err as Error).message}`);
-        await new Promise((r) => setTimeout(r, attempt * 1500));
-      }
-    }
-  }
-  throw lastErr;
-}
 
 async function processArticle(article: Article) {
-  const aiOutput = await processWithAI(article.title, article.body);
+  const ai = await withRetry("AI", AI_MAX_ATTEMPTS, () => callOpenRouter(article.title, article.body));
 
   const { error: upsertError } = await supabase
     .from("processed_articles")
     .upsert({
-      article_id:      article.id,
-      teen_headline:   aiOutput.teen_headline,
-      teen_summary:    aiOutput.teen_summary,
-      teen_body:       aiOutput.teen_body,
-      mood:            aiOutput.mood,
+      article_id:    article.id,
+      teen_headline: ai.teen_headline,
+      teen_summary:  ai.teen_summary,
+      teen_body:     ai.teen_body,
+      mood:          ai.mood,
       // Land as a draft; an admin reviews and publishes from the Admin screen.
-      status:          "draft",
-      processed_at: new Date().toISOString(),
+      status:        "draft",
+      processed_at:  new Date().toISOString(),
     }, { onConflict: "article_id" });
-
   if (upsertError) throw upsertError;
 
   const { error: updateError } = await supabase
     .from("articles")
     .update({ processed: true })
     .eq("id", article.id);
-
   if (updateError) throw updateError;
 
   console.log(`✅ Processed: ${article.title}`);
 }
 
-async function callOpenRouter(title: string, body: string) {
+
+async function callOpenRouter(title: string, body: string): Promise<AiOutput> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
@@ -115,7 +96,7 @@ async function callOpenRouter(title: string, body: string) {
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type":  "application/json",
         "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
       },
       body: JSON.stringify({
@@ -123,15 +104,13 @@ async function callOpenRouter(title: string, body: string) {
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `TITLE: ${title}\n\nBODY:\n${body}` },
+          { role: "user",   content: `TITLE: ${title}\n\nBODY:\n${body}` },
         ],
       }),
       signal: controller.signal,
     });
-  } catch (err: unknown) {
-    if (controller.signal.aborted) {
-      throw new Error(`OpenRouter request timed out after ${AI_TIMEOUT_MS}ms`);
-    }
+  } catch (err) {
+    if (controller.signal.aborted) throw new Error(`OpenRouter timed out after ${AI_TIMEOUT_MS}ms`);
     throw new Error(`Network error calling OpenRouter: ${(err as Error).message}`);
   } finally {
     clearTimeout(timer);
@@ -142,47 +121,52 @@ async function callOpenRouter(title: string, body: string) {
     throw new Error(`OpenRouter HTTP ${response.status}: ${errorText}`);
   }
 
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("OpenRouter returned non-JSON response");
+  const data = await response.json().catch(() => null) as { choices?: { message?: { content?: string } }[] } | null;
+  const raw = data?.choices?.[0]?.message?.content;
+  if (typeof raw !== "string" || !raw.trim()) {
+    throw new Error(`OpenRouter returned no usable content: ${JSON.stringify(data)?.slice(0, 200)}`);
   }
 
-  const choices = (data as { choices?: { message?: { content?: string } }[] }).choices;
-  if (!Array.isArray(choices) || choices.length === 0) {
-    throw new Error(`OpenRouter returned no choices: ${JSON.stringify(data)}`);
-  }
-
-  const raw = choices[0]?.message?.content;
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new Error("OpenRouter choice has empty or missing content");
-  }
-
+  // Strip ```json fences and literal newlines that can appear inside string values.
+  const cleaned = raw.replace(/```json\n?|```/g, "").replace(/\n/g, " ").trim();
   let parsed: Record<string, unknown>;
   try {
-  const cleaned = raw
-    .replace(/```json\n?|```/g, "")
-    .replace(/\n/g, " ")   // ← collapse literal newlines inside string values
-    .trim();
-  parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(cleaned);
   } catch {
     throw new Error(`Failed to parse AI JSON output: ${raw.slice(0, 200)}`);
   }
 
-  const required = ["teen_headline", "teen_summary", "teen_body", "mood"];
-  for (const field of required) {
+  for (const field of REQUIRED_FIELDS) {
     if (!parsed[field]) throw new Error(`AI output missing field: ${field}`);
   }
-
-  return parsed as {
-    teen_headline: string;
-    teen_summary:  string;
-    teen_body:     string;
-    mood:          string;
-  };
+  return parsed as AiOutput;
+}
 
 
+// Retry with linear backoff. Network errors, timeouts, 5xx, malformed output —
+// all worth a retry given the free model's nondeterminism.
+async function withRetry<T>(label: string, attempts: number, fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < attempts) {
+        console.warn(`${label} attempt ${attempt}/${attempts} failed: ${(err as Error).message}`);
+        await new Promise((r) => setTimeout(r, attempt * 1500));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 

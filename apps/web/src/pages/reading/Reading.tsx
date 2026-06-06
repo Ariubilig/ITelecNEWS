@@ -1,88 +1,60 @@
-import './Reading.css'
-import { supabase } from "../../lib/supabase";
+import "./Reading.css";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { useParams, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
-import { getMoodStyle, MOOD_CONFIG } from "@itelecnews/shared";
-import type { ProcessedArticle, EditForm } from "@itelecnews/shared";
+import { getMoodStyle } from "@itelecnews/shared";
+import type { ProcessedArticle } from "@itelecnews/shared";
+
 import { useQuery } from "../../lib/useQuery";
 import { articleById } from "../../lib/queries";
+import { useSession } from "../../hooks/useSession";
+
+import Comments from "../../components/comment/Comment";
+import EditArticleModal from "./EditArticleModal";
 
 import BackIcon    from "../../assets/back.svg";
 import CommentIcon from "../../assets/comment.svg";
 import LinkIcon    from "../../assets/link.svg";
 import EditIcon    from "../../assets/edit.svg";
 
-import Comments from '../../components/comment/Comment';
-
 
 export default function Reading() {
-
-  const { id }      = useParams();
-  const navigate    = useNavigate();
-  const contentRef  = useRef<HTMLDivElement>(null);
+  const { id }    = useParams();
+  const navigate  = useNavigate();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const { data: item, loading, refetch } =
     useQuery<ProcessedArticle>(() => articleById(id!), [id]);
 
-  const [fabLeft,  setFabLeft]  = useState<number | null>(null);
-  const [isAdmin,  setIsAdmin]  = useState(false);
-  const [editing,  setEditing]  = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const { session } = useSession();
+  const isAdmin = !!session;
 
+  const [editing, setEditing] = useState(false);
+  const [fabLeft, setFabLeft] = useState<number | null>(null);
+
+  // Freeze the smoothed scroll while the editor modal is open so the page behind
+  // doesn't drift when the user scrolls inside the textarea. Order matters:
+  // capture position → pause → restore, because pausing can nudge the scroll.
   useEffect(() => {
     const smoother = ScrollSmoother.get();
+    if (!smoother) return;
     if (editing) {
-      const pos = smoother?.scrollTop() ?? 0;
-      smoother?.paused(true);
-      smoother?.scrollTop(pos);
+      const pos = smoother.scrollTop();
+      smoother.paused(true);
+      smoother.scrollTop(pos);
     } else {
-      smoother?.paused(false);
+      smoother.paused(false);
     }
     return () => { ScrollSmoother.get()?.paused(false); };
   }, [editing]);
-  const [editForm, setEditForm] = useState<EditForm>({
-    teen_headline: "",
-    teen_summary:  "",
-    teen_body:     "",
-    mood:          "heavy",
-    status:        "published",
-    image:         "",
-  });
 
-  // Snapshot the current item into the edit form when the editor opens, so
-  // edits always start from the latest fetched values.
-  function openEditor() {
-    if (!item) return;
-    setEditForm({
-      teen_headline: item.teen_headline ?? "",
-      teen_summary:  item.teen_summary  ?? "",
-      teen_body:     item.teen_body     ?? "",
-      mood:          item.mood          ?? "heavy",
-      status:        item.status        ?? "published",
-      image:         item.articles?.image ?? "",
-    });
-    setSaveError("");
-    setEditing(true);
-  }
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setIsAdmin(!!data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsAdmin(!!session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Anchor fab 40px to the right of the article's actual right edge
+  // Anchor the FAB column 40px to the right of the article's actual right edge.
   useEffect(() => {
     function updateLeft() {
-      if (!contentRef.current) return;
-      const { right } = contentRef.current.getBoundingClientRect();
-      setFabLeft(right + 40);
+      const el = contentRef.current;
+      if (!el) return;
+      setFabLeft(el.getBoundingClientRect().right + 40);
     }
     const raf = requestAnimationFrame(updateLeft);
     window.addEventListener("resize", updateLeft, { passive: true });
@@ -99,96 +71,35 @@ export default function Reading() {
   const summary  = item?.teen_summary;
   const body     = item?.teen_body || article?.body;
 
-  function handleOpenLink() {
-    if (article?.url) window.open(article.url, "_blank", "noopener,noreferrer");
-  }
-
-  function handleScrollToComments() {
-    document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function setField<K extends keyof EditForm>(key: K, value: EditForm[K]) {
-    setEditForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function handleSave() {
-    if (!item) return;
-    setSaving(true);
-    setSaveError("");
-
-    const { error: pErr } = await supabase.from("processed_articles").update({
-      teen_headline: editForm.teen_headline,
-      teen_summary:  editForm.teen_summary,
-      teen_body:     editForm.teen_body,
-      mood:          editForm.mood,
-      status:        editForm.status,
-    }).eq("id", item.id);
-
-    let aErr = null;
-    if (!pErr && item.article_id) {
-      ({ error: aErr } = await supabase.from("articles").update({
-        image: editForm.image,
-      }).eq("id", item.article_id));
-    }
-
-    if (pErr || aErr) {
-      setSaving(false);
-      setSaveError("Хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
-      return;
-    }
-
-    // Save already succeeded; refresh the displayed article in the background
-    // and close the editor.
-    refetch();
-    setSaving(false);
-    setEditing(false);
-  }
+  const openSource     = () => article?.url && window.open(article.url, "_blank", "noopener,noreferrer");
+  const scrollComments = () => document.getElementById("comments")?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <div className="reading-root" ref={contentRef}>
 
-      {/* Floating action buttons */}
-      <div
-        className="fab-panel"
-        style={fabLeft != null ? { left: fabLeft } : undefined}
-      >
+      <div className="fab-panel" style={fabLeft != null ? { left: fabLeft } : undefined}>
         <button className="fab-btn" onClick={() => navigate(-1)} aria-label="Буцах">
           <img src={BackIcon} className="fab-icon" alt="" />
         </button>
-
         <div className="fab-divider" />
-
-        <button
-          className="fab-btn"
-          onClick={handleScrollToComments}
-          aria-label="Сэтгэгдэл"
-        >
+        <button className="fab-btn" onClick={scrollComments} aria-label="Сэтгэгдэл">
           <img src={CommentIcon} className="fab-icon" alt="" />
         </button>
-
         <div className="fab-divider" />
-
-        <button className="fab-btn" onClick={handleOpenLink} aria-label="Эх сурвалж нээх">
+        <button className="fab-btn" onClick={openSource} aria-label="Эх сурвалж нээх">
           <img src={LinkIcon} className="fab-icon" alt="" />
         </button>
-
         {isAdmin && (
           <>
             <div className="fab-divider" />
-            <button
-              className="fab-btn fab-btn--edit"
-              onClick={openEditor}
-              aria-label="Засах"
-            >
+            <button className="fab-btn fab-btn--edit" onClick={() => setEditing(true)} aria-label="Засах">
               <img src={EditIcon} className="fab-icon" alt="" />
             </button>
           </>
         )}
       </div>
 
-      {!loading && !item && (
-        <div className="reading-empty">Мэдээ олдсонгүй.</div>
-      )}
+      {!loading && !item && <div className="reading-empty">Мэдээ олдсонгүй.</div>}
 
       {item && (
         <>
@@ -197,6 +108,7 @@ export default function Reading() {
               <span className="article-date">{article.date}</span>
             </div>
           )}
+
           <div
             className="hero-mood"
             style={{ background: mood.bg, borderColor: mood.border, color: mood.color }}
@@ -204,22 +116,20 @@ export default function Reading() {
             {mood.label}
           </div>
 
-          {imageUrl && (
+          {imageUrl ? (
             <div className="hero-wrap">
               <img
                 src={imageUrl}
                 alt={headline}
                 className="hero-img"
                 onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  if (img.parentElement) img.parentElement.style.display = "none";
+                  const wrap = (e.target as HTMLImageElement).parentElement;
+                  if (wrap) wrap.style.display = "none";
                 }}
               />
               <div className="hero-gradient" />
             </div>
-          )}
-
-          {!imageUrl && (
+          ) : (
             <div
               className="inline-mood"
               style={{ background: mood.bg, borderColor: mood.border, color: mood.color }}
@@ -230,9 +140,7 @@ export default function Reading() {
 
           <h1 className="article-headline">{headline}</h1>
 
-          {summary && (
-            <blockquote className="article-summary">{summary}</blockquote>
-          )}
+          {summary && <blockquote className="article-summary">{summary}</blockquote>}
 
           {body && (
             <>
@@ -248,83 +156,13 @@ export default function Reading() {
         </>
       )}
 
-      {/* ── Edit modal ──────────────────────────────────────── */}
-      {editing && createPortal(
-        <div className="edit-overlay" onClick={(e) => e.target === e.currentTarget && setEditing(false)}>
-          <div className="edit-panel">
-            <h2 className="edit-title">Мэдээ засах</h2>
-
-            <label className="edit-label">Гарчиг</label>
-            <input
-              className="edit-input"
-              value={editForm.teen_headline}
-              onChange={(e) => setField("teen_headline", e.target.value)}
-            />
-
-            <label className="edit-label">Хураангуй</label>
-            <textarea
-              className="edit-textarea"
-              rows={3}
-              value={editForm.teen_summary}
-              onChange={(e) => setField("teen_summary", e.target.value)}
-            />
-
-            <label className="edit-label">Агуулга (HTML)</label>
-            <textarea
-              className="edit-textarea"
-              rows={10}
-              value={editForm.teen_body}
-              onChange={(e) => setField("teen_body", e.target.value)}
-            />
-
-            <label className="edit-label">Зурагны URL</label>
-            <input
-              className="edit-input"
-              placeholder="https://..."
-              value={editForm.image}
-              onChange={(e) => setField("image", e.target.value)}
-            />
-
-            <div className="edit-row">
-              <div className="edit-col">
-                <label className="edit-label">Сэтгэл</label>
-                <select
-                  className="edit-select"
-                  value={editForm.mood}
-                  onChange={(e) => setField("mood", e.target.value)}
-                >
-                  {Object.entries(MOOD_CONFIG).map(([key, val]) => (
-                    <option key={key} value={key}>{val.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="edit-col">
-                <label className="edit-label">Төлөв</label>
-                <select
-                  className="edit-select"
-                  value={editForm.status}
-                  onChange={(e) => setField("status", e.target.value)}
-                >
-                  <option value="published">Нийтлэгдсэн</option>
-                  <option value="draft">Хүлээгдэж байна</option>
-                  <option value="rejected">Татгалзсан</option>
-                </select>
-              </div>
-            </div>
-
-            {saveError && <p className="edit-error">{saveError}</p>}
-
-            <div className="edit-actions">
-              <button className="edit-btn-ghost" onClick={() => setEditing(false)} disabled={saving}>
-                Болих
-              </button>
-              <button className="edit-btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? "Хадгалж байна…" : "Хадгалах"}
-              </button>
-            </div>
-          </div>
-        </div>
-      , document.body)}
+      {editing && item && (
+        <EditArticleModal
+          item={item}
+          onClose={() => setEditing(false)}
+          onSaved={refetch}
+        />
+      )}
     </div>
   );
 }
