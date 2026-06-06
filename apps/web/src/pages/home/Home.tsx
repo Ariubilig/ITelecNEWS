@@ -60,20 +60,34 @@ export default function Home() {
   const articles = data ?? [];
 
   if (loading) {
-    return <div className="home-root"><div className="home-loading">Уншиж байна…</div></div>;
+    return (
+      <div className="home-root">
+        <div className="home-loading">Уншиж байна…</div>
+      </div>
+    );
   }
+
   if (error) {
-    return <div className="home-root"><div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div></div>;
+    return (
+      <div className="home-root">
+        <div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div>
+      </div>
+    );
   }
+
   if (articles.length === 0) {
-    return <div className="home-root"><div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div></div>;
+    return (
+      <div className="home-root">
+        <div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div>
+      </div>
+    );
   }
 
   return (
     <div className="home-root">
       <div className="articles-grid">
         {articles.map((item, i) => (
-          <ArticleCard key={String(item.id)} item={item} index={i} />
+          <ArticleCard key={item.id} item={item} index={i} />
         ))}
       </div>
     </div>

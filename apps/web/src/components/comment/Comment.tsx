@@ -7,11 +7,9 @@ import { buildTree, timeAgo, type CommentNode } from "../../lib/comments";
 import "./Comment.css";
 
 
-type Id = string | number;
-
 interface ComposeFormProps {
-  articleId: Id;
-  parentId:  Id | null;
+  articleId: number;
+  parentId:  number | null;
   onPosted:  () => void;
   onCancel?: () => void;
   autoFocus?: boolean;
@@ -19,15 +17,15 @@ interface ComposeFormProps {
 
 interface CommentCardProps {
   comment:   CommentNode;
-  replyTo:   Id | null;
-  onReply:   (id: Id | null) => void;
+  replyTo:   number | null;
+  onReply:   (id: number | null) => void;
   onPosted:  () => void;
-  articleId: Id;
+  articleId: number;
   depth?:    number;
 }
 
 interface CommentsProps {
-  articleId: Id | undefined;
+  articleId: number | undefined;
 }
 
 
@@ -171,11 +169,11 @@ export default function Comments({ articleId }: CommentsProps) {
     !!articleId,
   );
   const tree = useMemo(() => buildTree(data ?? []), [data]);
-  const [replyTo, setReplyTo] = useState<Id | null>(null);
+  const [replyTo, setReplyTo] = useState<number | null>(null);
 
   if (!articleId) return null;
 
-  const toggleReply = (id: Id | null) => setReplyTo((prev) => (prev === id ? null : id));
+  const toggleReply = (id: number | null) => setReplyTo((prev) => (prev === id ? null : id));
   const handlePosted = () => { setReplyTo(null); refetch(); };
 
   return (

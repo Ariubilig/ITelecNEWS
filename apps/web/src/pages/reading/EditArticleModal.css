@@ -1,0 +1,108 @@
+.edit-overlay {
+    position:        fixed;
+    inset:           0;
+    background:      rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    z-index:         500;
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    padding:         20px;
+    overflow-y:      auto;
+}
+.edit-panel {
+    width:          100%;
+    max-width:      600px;
+    max-height:     calc(100vh - 40px);
+    overflow-y:     auto;
+    background:     var(--color-bg, #151515);
+    border:         1px solid var(--dividerBg, #ffffff1f);
+    border-radius:  16px;
+    padding:        32px;
+    display:        flex;
+    flex-direction: column;
+    gap:            12px;
+}
+.edit-title {
+    font-size:     18px;
+    font-weight:   700;
+    color:         var(--textDefault, #f2f2f2);
+    margin-bottom: 4px;
+}
+.edit-label {
+    font-size:   12px;
+    font-weight: 600;
+    color:       var(--textS, #8c8c8c);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top:  4px;
+}
+.edit-input,
+.edit-textarea,
+.edit-select {
+    width:         100%;
+    padding:       9px 12px;
+    background:    var(--dividerBg, #ffffff0d);
+    border:        1px solid var(--dividerBg, #ffffff1f);
+    border-radius: 8px;
+    color:         var(--textDefault, #f2f2f2);
+    font-size:     14px;
+    font-family:   inherit;
+    outline:       none;
+    transition:    border-color 0.15s;
+    resize:        vertical;
+}
+.edit-input:focus,
+.edit-textarea:focus,
+.edit-select:focus {
+    border-color: #3b82f6;
+}
+.edit-select option { background: #1a1a1a; }
+.edit-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.edit-col {
+    display:        flex;
+    flex-direction: column;
+    gap:            6px;
+}
+.edit-error {
+    margin:        4px 0 0;
+    color:         #f87171;
+    font-size:     14px;
+}
+.edit-actions {
+    display:         flex;
+    justify-content: flex-end;
+    gap:             10px;
+    margin-top:      8px;
+}
+.edit-btn-ghost {
+    padding:       9px 20px;
+    background:    transparent;
+    border:        1px solid var(--dividerBg, #ffffff1f);
+    border-radius: 8px;
+    color:         var(--textS, #8c8c8c);
+    font-size:     14px;
+    font-family:   inherit;
+    cursor:        pointer;
+    transition:    border-color 0.15s;
+}
+.edit-btn-ghost:hover:not(:disabled) { border-color: var(--divider, #ffffff40); }
+.edit-btn-primary {
+    padding:       9px 20px;
+    background:    #3b82f6;
+    border:        none;
+    border-radius: 8px;
+    color:         #fff;
+    font-size:     14px;
+    font-weight:   600;
+    font-family:   inherit;
+    cursor:        pointer;
+    transition:    background 0.15s;
+}
+.edit-btn-primary:hover:not(:disabled) { background: #2563eb; }
+.edit-btn-primary:disabled,
+.edit-btn-ghost:disabled { opacity: 0.5; cursor: default; }

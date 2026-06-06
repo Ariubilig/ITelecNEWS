@@ -6,37 +6,36 @@ const supabase = createClient(
 );
 
 // Rate-limit knobs.
-const COOLDOWN_MS  = 15_000; // min gap between posts from one IP
-const MAX_PER_HOUR = 12;     // hourly cap per IP
-const NAME_MAX     = 40;
-const CONTENT_MAX  = 1000;
+const COOLDOWN_MS    = 15_000; // min gap between posts from one IP
+const MAX_PER_HOUR   = 12;     // hourly cap per IP
+const NAME_MAX       = 40;
+const CONTENT_MAX    = 1000;
 
 const CORS = {
-  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
     status,
     headers: { ...CORS, "Content-Type": "application/json" },
   });
-
-interface Payload {
-  article_id?: number | string;
-  guest_name?: string;
-  content?:    string;
-  parent_id?:  number | string | null;
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method !== "POST")    return json({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
-  let payload: Payload;
+  let payload: {
+    article_id?: number | string;
+    guest_name?: string;
+    content?: string;
+    parent_id?: number | string | null;
+  };
   try {
     payload = await req.json();
   } catch {
@@ -45,12 +44,12 @@ Deno.serve(async (req: Request) => {
 
   const articleId = Number(payload.article_id);
   const guestName = (payload.guest_name ?? "").trim();
-  const content   = (payload.content   ?? "").trim();
+  const content   = (payload.content ?? "").trim();
   const parentId  = payload.parent_id != null ? Number(payload.parent_id) : null;
 
-  if (!Number.isFinite(articleId))                   return json({ error: "article_id is required" }, 400);
-  if (!guestName || guestName.length > NAME_MAX)     return json({ error: "Invalid name" }, 400);
-  if (!content   || content.length   > CONTENT_MAX)  return json({ error: "Invalid content" }, 400);
+  if (!Number.isFinite(articleId)) return json({ error: "article_id is required" }, 400);
+  if (!guestName || guestName.length > NAME_MAX) return json({ error: "Invalid name" }, 400);
+  if (!content || content.length > CONTENT_MAX) return json({ error: "Invalid content" }, 400);
   if (parentId != null && !Number.isFinite(parentId)) return json({ error: "Invalid parent_id" }, 400);
 
   // ── Rate limit ──────────────────────────────────────────────────────────
@@ -67,7 +66,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Server error" }, 500);
   }
 
-  if (recent?.length) {
+  if (recent && recent.length > 0) {
     const last = new Date(recent[0].created_at).getTime();
     if (now - last < COOLDOWN_MS) {
       return json({ error: "Дэндүү хурдан байна. Түр хүлээгээд дахин оролдоно уу." }, 429);

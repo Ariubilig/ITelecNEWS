@@ -32,7 +32,7 @@ export const articleById = (id: string) =>
     .single();
 
 /** Published comments for one article, oldest first (so replies thread correctly). */
-export const commentsFor = (articleId: string | number) =>
+export const commentsFor = (articleId: number) =>
   supabase
     .from("comments")
     .select("*")

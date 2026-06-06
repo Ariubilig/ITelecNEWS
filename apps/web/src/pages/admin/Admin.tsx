@@ -10,14 +10,12 @@ import { useSession } from "../../hooks/useSession";
 import { allArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
 
-type Id = string | number;
-
 
 interface AdminCardProps {
   item: ProcessedArticle;
   index: number;
-  onApprove: (id: Id) => void;
-  onDecline: (id: Id) => void;
+  onApprove: (id: number) => void;
+  onDecline: (id: number) => void;
 }
 
 function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
@@ -105,7 +103,7 @@ export default function Admin() {
   const articles = data ?? [];
   const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
 
-  const setStatus = async (id: Id, status: string, failMsg: string) => {
+  const setStatus = async (id: number, status: string, failMsg: string) => {
     setActionError("");
     const { error: updateErr } = await supabase
       .from("processed_articles")
@@ -118,8 +116,8 @@ export default function Admin() {
     setData((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, status } : a)));
   };
 
-  const handleApprove = (id: Id) => setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
-  const handleDecline = (id: Id) => setStatus(id, "rejected",  "Татгалзахад алдаа гарлаа.");
+  const handleApprove = (id: number) => setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
+  const handleDecline = (id: number) => setStatus(id, "rejected",  "Татгалзахад алдаа гарлаа.");
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/admin/login");
@@ -161,7 +159,7 @@ export default function Admin() {
         <div className="admin-grid">
           {articles.map((item, i) => (
             <AdminCard
-              key={String(item.id)}
+              key={item.id}
               item={item}
               index={i}
               onApprove={handleApprove}

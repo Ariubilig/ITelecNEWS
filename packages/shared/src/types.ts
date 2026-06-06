@@ -1,6 +1,6 @@
 /** A raw article row as scraped and stored in the `articles` table. */
 export interface Article {
-  id: string | number;
+  id: number;
   title?: string;
   image?: string;
   url?: string;
@@ -18,8 +18,8 @@ export interface ScrapedArticle {
 
 /** An AI-rewritten article row from `processed_articles`, optionally joined with its source `articles` row. */
 export interface ProcessedArticle {
-  id: string | number;
-  article_id?: string | number;
+  id: number;
+  article_id?: number;
   status?: string;
   mood?: string;
   teen_headline?: string;

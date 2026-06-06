@@ -1,3 +1,4 @@
+import "./EditArticleModal.css";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { MOOD_CONFIG } from "@itelecnews/shared";
@@ -39,9 +40,14 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
       status:        form.status,
     }).eq("id", item.id);
 
-    const { error: aErr } = pErr || !item.article_id
-      ? { error: null }
-      : await supabase.from("articles").update({ image: form.image }).eq("id", item.article_id);
+    let aErr: unknown = null;
+    if (!pErr && item.article_id) {
+      const { error } = await supabase
+        .from("articles")
+        .update({ image: form.image })
+        .eq("id", item.article_id);
+      aErr = error;
+    }
 
     setSaving(false);
 
