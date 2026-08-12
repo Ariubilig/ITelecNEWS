@@ -22,6 +22,9 @@
   }
 }
 @media (max-width: 540px) {
+  /* The clamp bottoms out at 40px, which tucks the first card under the fixed
+     navbar on short (landscape) screens. */
+  .home-root { padding-top: 76px; }
   .articles-grid {
     padding-inline: 16px;
     grid-template-columns: 1fr;
@@ -45,11 +48,18 @@
     box-shadow   0.2s ease,
     transform    0.2s ease;
 }
-.card:hover {
-  border-color: var(--divider, #ffffff40);
-  box-shadow:   0 12px 40px rgba(0,0,0,0.45);
-  transform:    translateY(-3px);
-  outline: none;
+/* Only on real pointers: on touch, :hover latches after a tap and the card
+   stays lifted until you tap elsewhere. */
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--divider, #ffffff40);
+    box-shadow:   0 12px 40px rgba(0,0,0,0.45);
+    transform:    translateY(-3px);
+    outline: none;
+  }
+  .card:hover .card-img {
+    transform: scale(1.04);
+  }
 }
 .card:focus-visible {
   outline: 2px solid var(--textDefault, #fff);
@@ -70,9 +80,6 @@
   object-fit: cover;
   display:    block;
   transition: transform 0.4s ease;
-}
-.card:hover .card-img {
-  transform: scale(1.04);
 }
 .card-img-empty {
   width:      100%;
@@ -126,4 +133,12 @@
   min-height: 40vh;
   color: var(--color-muted, #888);
   font-size: 1rem;
+}
+
+/* Card overrides must sit after the base card rules above — same specificity,
+   so source order decides. */
+@media (max-width: 540px) {
+  /* A single full-width column makes a 3:4 portrait absurdly tall. */
+  .card-img-wrap { aspect-ratio: 16 / 10; }
+  .card-headline { font-size: 17px; }
 }
