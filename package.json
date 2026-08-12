@@ -12,10 +12,13 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",
-    "scrape": "turbo run scrape"
+    "scrape": "turbo run scrape",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "turbo": "^2.5.8"
+    "turbo": "^2.5.8",
+    "vitest": "^4.1.10"
   },
   "packageManager": "npm@11.12.1",
   "engines": {

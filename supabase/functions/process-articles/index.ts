@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import pLimit from "https://esm.sh/p-limit@6";
+import { parseAiOutput, type AiOutput } from "./parse.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -14,10 +15,15 @@ const CONCURRENCY      = 3;
 // body into memory and then die partway through. The caller re-invokes while
 // `remaining` is true.
 const BATCH_SIZE       = 20;
-const REQUIRED_FIELDS  = ["teen_headline", "teen_summary", "teen_body", "mood"] as const;
+
+// Free models get rate-limited hard and are retired without much notice, so
+// fall through a list rather than failing the whole run on one model.
+const MODELS = [
+  "openai/gpt-oss-120b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+] as const;
 
 type Article = { id: number; title: string; body: string };
-type AiOutput = { teen_headline: string; teen_summary: string; teen_body: string; mood: string };
 
 
 Deno.serve(async (req: Request) => {
@@ -72,8 +78,23 @@ Deno.serve(async (req: Request) => {
 });
 
 
+/** Try each model in turn, retrying transient failures within each one. */
+async function generate(title: string, body: string): Promise<AiOutput> {
+  let lastErr: unknown;
+  for (const model of MODELS) {
+    try {
+      return await withRetry(model, AI_MAX_ATTEMPTS, () => callOpenRouter(model, title, body));
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Model ${model} exhausted, falling back: ${(err as Error).message}`);
+    }
+  }
+  throw lastErr;
+}
+
+
 async function processArticle(article: Article) {
-  const ai = await withRetry("AI", AI_MAX_ATTEMPTS, () => callOpenRouter(article.title, article.body));
+  const ai = await generate(article.title, article.body);
 
   const { error: upsertError } = await supabase
     .from("processed_articles")
@@ -99,7 +120,7 @@ async function processArticle(article: Article) {
 }
 
 
-async function callOpenRouter(title: string, body: string): Promise<AiOutput> {
+async function callOpenRouter(model: string, title: string, body: string): Promise<AiOutput> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
@@ -112,7 +133,7 @@ async function callOpenRouter(title: string, body: string): Promise<AiOutput> {
         "Authorization": `Bearer ${Deno.env.get("OPENROUTER_API_KEY")}`,
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-120b:free",
+        model,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -139,19 +160,7 @@ async function callOpenRouter(title: string, body: string): Promise<AiOutput> {
     throw new Error(`OpenRouter returned no usable content: ${JSON.stringify(data)?.slice(0, 200)}`);
   }
 
-  // Strip ```json fences and literal newlines that can appear inside string values.
-  const cleaned = raw.replace(/```json\n?|```/g, "").replace(/\n/g, " ").trim();
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    throw new Error(`Failed to parse AI JSON output: ${raw.slice(0, 200)}`);
-  }
-
-  for (const field of REQUIRED_FIELDS) {
-    if (!parsed[field]) throw new Error(`AI output missing field: ${field}`);
-  }
-  return parsed as AiOutput;
+  return parseAiOutput(raw);
 }
 
 

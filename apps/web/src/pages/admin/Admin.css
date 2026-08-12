@@ -150,6 +150,11 @@
   overflow:     hidden;
   background:   #1a1a1a;
   flex-shrink:  0;
+  /* It's an <a>; keep it looking like part of the card. */
+  display:         block;
+  cursor:          pointer;
+  text-decoration: none;
+  color:           inherit;
 }
 .admin-card-img {
   width:      100%;

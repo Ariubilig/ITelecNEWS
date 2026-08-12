@@ -1,0 +1,70 @@
+/* Shared by the error boundary and the 404 route. */
+
+.fallback-root {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             12px;
+  min-height:      70vh;
+  padding:         24px;
+  text-align:      center;
+}
+
+.fallback-title {
+  font-size:   clamp(20px, 5vw, 28px);
+  font-weight: 800;
+  color:       var(--textDefault);
+  margin:      0;
+}
+
+.fallback-text {
+  font-size:  15px;
+  line-height: 1.6;
+  color:      var(--textS);
+  max-width:  40ch;
+  margin:     0;
+}
+
+.fallback-actions {
+  display: flex;
+  gap:     10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.fallback-btn {
+  padding:       10px 20px;
+  border-radius: 8px;
+  border:        1px solid var(--dividerBg);
+  background:    transparent;
+  color:         var(--textM);
+  font-size:     14px;
+  font-family:   inherit;
+  font-weight:   600;
+  cursor:        pointer;
+  text-decoration: none;
+  transition:    border-color 0.15s, color 0.15s;
+}
+
+.fallback-btn:hover {
+  border-color: var(--divider);
+  color:        var(--textDefault);
+}
+
+/* Only shown in dev — see ErrorBoundary. */
+.fallback-detail {
+  margin-top:    16px;
+  max-width:     min(90vw, 700px);
+  overflow-x:    auto;
+  padding:       12px 14px;
+  border-radius: 8px;
+  border:        1px solid rgba(248, 113, 113, 0.3);
+  background:    rgba(248, 113, 113, 0.08);
+  color:         #f87171;
+  font-family:   ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:     12px;
+  text-align:    left;
+  white-space:   pre-wrap;
+}

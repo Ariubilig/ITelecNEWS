@@ -1,6 +1,6 @@
 import "./Home.css";
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ArticleListItem } from "@itelecnews/shared";
 
@@ -15,20 +15,18 @@ interface ArticleCardProps {
 }
 
 function ArticleCard({ item, index }: ArticleCardProps) {
-  const navigate = useNavigate();
   const article  = item.articles;
   const mood     = getMoodStyle(item.mood);
   const headline = item.teen_headline || article?.title || "Гарчиг байхгүй";
-  const open     = () => navigate(`/article/${item.id}`);
 
+  // A real anchor rather than a div with a click handler: crawlers can follow
+  // it, middle-click and "open in new tab" work, and Enter/Space come free
+  // instead of being hand-rolled.
   return (
-    <article
+    <Link
+      to={`/article/${item.id}`}
       className="card"
       style={{ "--delay": `${index * 55}ms` } as React.CSSProperties}
-      onClick={open}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && open()}
     >
       <div className="card-img-wrap">
         <FallbackImage
@@ -45,7 +43,7 @@ function ArticleCard({ item, index }: ArticleCardProps) {
           <span className="mood-badge" style={mood.style}>{mood.label}</span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
 

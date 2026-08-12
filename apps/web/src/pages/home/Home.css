@@ -39,6 +39,9 @@
   cursor:        pointer;
   display:       flex;
   flex-direction: column;
+  /* The card is an <a>; keep it looking like a card. */
+  text-decoration: none;
+  color:           inherit;
 
   animation:       fadeUp 0.42s ease both;
   animation-delay: var(--delay, 0ms);
