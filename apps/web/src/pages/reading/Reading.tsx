@@ -18,6 +18,9 @@ import CommentIcon from "../../assets/comment.svg";
 import LinkIcon    from "../../assets/link.svg";
 import EditIcon    from "../../assets/edit.svg";
 
+/** Below this the side rail docks to the bottom. Keep in sync with Reading.css. */
+const FAB_RAIL_MIN_WIDTH = 900;
+
 
 export default function Reading() {
   const { id }    = useParams();
@@ -54,11 +57,18 @@ export default function Reading() {
   }, [editing]);
 
   // Anchor the FAB column 40px to the right of the article's actual right edge.
+  // Narrower than that and there's no room beside the text, so the rail becomes
+  // a bottom bar laid out entirely in Reading.css — hence the null, which drops
+  // the inline `left` that would otherwise override the stylesheet.
   useEffect(() => {
     function updateLeft() {
       const el = contentRef.current;
       if (!el) return;
-      setFabLeft(el.getBoundingClientRect().right + 40);
+      setFabLeft(
+        window.innerWidth <= FAB_RAIL_MIN_WIDTH
+          ? null
+          : el.getBoundingClientRect().right + 40,
+      );
     }
     const raf = requestAnimationFrame(updateLeft);
     window.addEventListener("resize", updateLeft, { passive: true });
@@ -113,8 +123,10 @@ export default function Reading() {
             </div>
           )}
 
-          <div className="hero-mood" style={mood.style}>{mood.label}</div>
-
+          {/* The badge lives inside the hero so it overlays the image it's
+              styled for. As a sibling it had no positioned ancestor, so it
+              anchored to the page instead — and rendered on top of the
+              separate `inline-mood` when an article had no image. */}
           {heroSrc ? (
             <div className="hero-wrap">
               <img
@@ -124,6 +136,7 @@ export default function Reading() {
                 onError={() => setFailedHeroId(id)}
               />
               <div className="hero-gradient" />
+              <div className="hero-mood" style={mood.style}>{mood.label}</div>
             </div>
           ) : (
             <div className="inline-mood" style={mood.style}>{mood.label}</div>

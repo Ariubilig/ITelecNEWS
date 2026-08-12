@@ -112,6 +112,25 @@
 @media (max-width: 600px) {
     .hero-wrap { height: 220px; }
     .article-headline { font-size: 20px; }
+    .article-summary {
+        font-size: 15px;
+        padding: 14px 15px;
+    }
+    .article-body { font-size: 15px; }
+}
+
+/* Images and embeds inside the AI-written HTML body must not force the page
+   to scroll sideways; wide tables scroll within themselves instead. */
+.article-body img,
+.article-body video,
+.article-body iframe {
+    max-width: 100%;
+    height: auto;
+}
+.article-body table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 /* ── FAB panel ── */
@@ -171,4 +190,38 @@
 .fab-btn--edit:hover {
     background: rgba(59,130,246,0.30);
     filter: none;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────
+   Below 900px there's no room beside the 720px text column, so the rail
+   docks to the bottom edge as a horizontal bar. Reading.tsx stops setting
+   the inline `left` at the same width (FAB_RAIL_MIN_WIDTH) so these rules
+   aren't overridden. */
+
+@media (max-width: 900px) {
+    .reading-root {
+        padding-top: 84px;
+        padding-inline: 20px;
+        /* Clear the docked bar so the last comment stays reachable. */
+        padding-bottom: 84px;
+    }
+
+    .fab-panel {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transform: none;
+        flex-direction: row;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 12px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--dividerBg);
+        /* Near-opaque: the blur alone left body text legible through the bar. */
+        background: var(--color-bg); /* fallback for no color-mix support */
+        background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
 }

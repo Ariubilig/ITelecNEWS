@@ -1,6 +1,11 @@
 :root {
   --color-bg: #151515;
 
+  /* Foreground channels for translucent surfaces, used as
+     `rgba(var(--fg-rgb), <alpha>)`. Lets components tint against the current
+     theme instead of hard-coding white. */
+  --fg-rgb: 255, 255, 255;
+
   --textDefault: #FFFFFF;
   --textL: #F2F2F2;
   --textM: #BFBFBF;
@@ -19,6 +24,8 @@
 
 [data-theme="light"] {
   --color-bg: #FFFFFF;
+
+  --fg-rgb: 21, 21, 21;
 
   --textDefault: #151515;
   --textL: #2C2C2C;

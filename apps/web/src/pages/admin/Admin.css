@@ -87,10 +87,23 @@
   }
 }
 @media (max-width: 540px) {
+  /* The clamp bottoms out at 40px, which tucks the header under the navbar. */
+  .admin-root { padding-top: 76px; }
+  .admin-header {
+    padding-inline: 16px;
+    /* Title on its own line; counts and logout share the next one. */
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
   .admin-grid {
     padding-inline: 16px;
     grid-template-columns: 1fr;
   }
+  .admin-logout-btn { padding: 8px 16px; }
 }
 
 /* ── Card ── */
@@ -114,10 +127,16 @@
 .admin-card--pending {
   border-color: rgba(251,146,60,0.30);
 }
-.admin-card:hover {
-  border-color: var(--divider, #ffffff40);
-  box-shadow:   0 12px 40px rgba(0,0,0,0.45);
-  transform:    translateY(-3px);
+/* Only on real pointers: on touch, :hover latches after a tap. */
+@media (hover: hover) {
+  .admin-card:hover {
+    border-color: var(--divider, #ffffff40);
+    box-shadow:   0 12px 40px rgba(0,0,0,0.45);
+    transform:    translateY(-3px);
+  }
+  .admin-card:hover .admin-card-img {
+    transform: scale(1.04);
+  }
 }
 .admin-card:focus-visible {
   outline: 2px solid var(--textDefault, #fff);
@@ -138,9 +157,6 @@
   object-fit: cover;
   display:    block;
   transition: transform 0.4s ease;
-}
-.admin-card:hover .admin-card-img {
-  transform: scale(1.04);
 }
 .admin-card-img-empty {
   width:      100%;
@@ -267,5 +283,14 @@
   border-radius: 8px;
   color:         #f87171;
   font-size:     0.95rem;
+}
+
+/* Card overrides must sit after the base card rules above — same specificity,
+   so source order decides. */
+@media (max-width: 540px) {
+  /* A single full-width column makes a 3:4 portrait absurdly tall. */
+  .admin-card-img-wrap { aspect-ratio: 16 / 10; }
+  /* Comfortable tap targets for the approve/decline pair. */
+  .action-btn { padding: 11px 0; }
 }
 

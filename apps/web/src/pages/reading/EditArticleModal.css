@@ -106,3 +106,38 @@
 .edit-btn-primary:hover:not(:disabled) { background: #2563eb; }
 .edit-btn-primary:disabled,
 .edit-btn-ghost:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Mobile: full-width bottom sheet ── */
+
+@media (max-width: 600px) {
+    .edit-overlay {
+        padding:     0;
+        align-items: flex-end;
+    }
+    .edit-panel {
+        max-width:     none;
+        max-height:    92vh;
+        border-radius: 16px 16px 0 0;
+        padding:       22px 18px;
+        padding-bottom: calc(22px + env(safe-area-inset-bottom));
+    }
+    /* 16px stops iOS Safari zooming the page when a field takes focus. */
+    .edit-input,
+    .edit-textarea,
+    .edit-select {
+        font-size: 16px;
+        padding:   11px 12px;
+    }
+    /* Mood and status stack rather than sharing a cramped row. */
+    .edit-row {
+        grid-template-columns: 1fr;
+    }
+    .edit-actions {
+        flex-direction: column-reverse;
+    }
+    .edit-btn-ghost,
+    .edit-btn-primary {
+        width:   100%;
+        padding: 12px 20px;
+    }
+}
