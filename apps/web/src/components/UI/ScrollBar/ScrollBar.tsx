@@ -114,10 +114,15 @@ export default function ScrollBar() {
 
     // Re-measure when the track or scrollable content changes size (e.g. async
     // content loading on a news page changing the page height).
+    //
+    // Observe `#smooth-content` by id rather than asking the smoother for it:
+    // this component's effect runs before its parent creates the smoother, so
+    // at this point `getSmoother()` is still undefined. Resolving the element
+    // directly means we watch the real scrolling content from the first frame,
+    // in both the smoothed and native-scroll cases.
     const ro = new ResizeObserver(() => { measure(); tick(); });
     ro.observe(track);
-    const content = getSmoother()?.content() as HTMLElement | undefined;
-    ro.observe(content ?? document.documentElement);
+    ro.observe(document.getElementById("smooth-content") ?? document.documentElement);
     window.addEventListener("resize", measure);
 
     return () => {

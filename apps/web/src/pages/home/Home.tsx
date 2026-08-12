@@ -2,7 +2,7 @@ import "./Home.css";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
-import type { ProcessedArticle } from "@itelecnews/shared";
+import type { ArticleListItem } from "@itelecnews/shared";
 
 import { useQuery } from "../../lib/useQuery";
 import { publishedArticles } from "../../lib/queries";
@@ -10,7 +10,7 @@ import { FallbackImage } from "../../components/UI/FallbackImage";
 
 
 interface ArticleCardProps {
-  item: ProcessedArticle;
+  item: ArticleListItem;
   index: number;
 }
 
@@ -42,12 +42,7 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 
         <div className="card-overlay-content">
           <h2 className="card-headline">{headline}</h2>
-          <span
-            className="mood-badge"
-            style={{ color: mood.color, background: mood.bg, borderColor: mood.border }}
-          >
-            {mood.label}
-          </span>
+          <span className="mood-badge" style={mood.style}>{mood.label}</span>
         </div>
       </div>
     </article>
@@ -56,40 +51,27 @@ function ArticleCard({ item, index }: ArticleCardProps) {
 
 
 export default function Home() {
-  const { data, loading, error } = useQuery<ProcessedArticle[]>(publishedArticles, []);
+  const { data, loading, error } = useQuery<ArticleListItem[]>(publishedArticles, []);
   const articles = data ?? [];
 
-  if (loading) {
-    return (
-      <div className="home-root">
-        <div className="home-loading">Уншиж байна…</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="home-root">
-        <div className="home-empty">Мэдээг ачаалахад алдаа гарлаа.</div>
-      </div>
-    );
-  }
-
-  if (articles.length === 0) {
-    return (
-      <div className="home-root">
-        <div className="home-empty">Одоохондоо мэдээ байхгүй байна.</div>
-      </div>
-    );
-  }
+  // Loading, error and empty all render the same shell around one line of text.
+  const notice =
+    loading                 ? "Уншиж байна…"
+    : error                 ? "Мэдээг ачаалахад алдаа гарлаа."
+    : articles.length === 0 ? "Одоохондоо мэдээ байхгүй байна."
+    : null;
 
   return (
     <div className="home-root">
-      <div className="articles-grid">
-        {articles.map((item, i) => (
-          <ArticleCard key={item.id} item={item} index={i} />
-        ))}
-      </div>
+      {notice ? (
+        <div className={loading ? "home-loading" : "home-empty"}>{notice}</div>
+      ) : (
+        <div className="articles-grid">
+          {articles.map((item, i) => (
+            <ArticleCard key={item.id} item={item} index={i} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

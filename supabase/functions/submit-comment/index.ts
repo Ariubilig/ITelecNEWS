@@ -53,13 +53,16 @@ Deno.serve(async (req: Request) => {
   if (parentId != null && !Number.isFinite(parentId)) return json({ error: "Invalid parent_id" }, 400);
 
   // ── Rate limit ──────────────────────────────────────────────────────────
+  // One bounded round trip answers both checks: row 0 is the most recent post
+  // (cooldown), and hitting the row cap means the hourly limit is reached.
   const now = Date.now();
   const { data: recent, error: rlErr } = await supabase
     .from("comment_throttle")
     .select("created_at")
     .eq("ip", ip)
     .gte("created_at", new Date(now - 3_600_000).toISOString())
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(MAX_PER_HOUR);
 
   if (rlErr) {
     console.error("Throttle lookup failed:", rlErr);

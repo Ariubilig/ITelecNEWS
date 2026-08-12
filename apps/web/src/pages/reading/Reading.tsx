@@ -32,6 +32,10 @@ export default function Reading() {
 
   const [editing, setEditing] = useState(false);
   const [fabLeft, setFabLeft] = useState<number | null>(null);
+  // Which article's hero image failed to load, rather than a bare boolean: the
+  // route reuses this component across articles, and storing the id means a new
+  // article gets a fresh chance at its image without needing a reset effect.
+  const [failedHeroId, setFailedHeroId] = useState<string | undefined>();
 
   // Freeze the smoothed scroll while the editor modal is open so the page behind
   // doesn't drift when the user scrolls inside the textarea. Order matters:
@@ -65,8 +69,8 @@ export default function Reading() {
   }, [item]);
 
   const article  = item?.articles;
-  const imageUrl = article?.image ?? null;
   const mood     = getMoodStyle(item?.mood);
+  const heroSrc  = failedHeroId === id ? null : article?.image ?? null;
   const headline = item?.teen_headline || article?.title || "Гарчиг байхгүй";
   const summary  = item?.teen_summary;
   const body     = item?.teen_body || article?.body;
@@ -109,33 +113,20 @@ export default function Reading() {
             </div>
           )}
 
-          <div
-            className="hero-mood"
-            style={{ background: mood.bg, borderColor: mood.border, color: mood.color }}
-          >
-            {mood.label}
-          </div>
+          <div className="hero-mood" style={mood.style}>{mood.label}</div>
 
-          {imageUrl ? (
+          {heroSrc ? (
             <div className="hero-wrap">
               <img
-                src={imageUrl}
+                src={heroSrc}
                 alt={headline}
                 className="hero-img"
-                onError={(e) => {
-                  const wrap = (e.target as HTMLImageElement).parentElement;
-                  if (wrap) wrap.style.display = "none";
-                }}
+                onError={() => setFailedHeroId(id)}
               />
               <div className="hero-gradient" />
             </div>
           ) : (
-            <div
-              className="inline-mood"
-              style={{ background: mood.bg, borderColor: mood.border, color: mood.color }}
-            >
-              {mood.label}
-            </div>
+            <div className="inline-mood" style={mood.style}>{mood.label}</div>
           )}
 
           <h1 className="article-headline">{headline}</h1>
