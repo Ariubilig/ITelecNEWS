@@ -50,3 +50,32 @@ CREATE TABLE public.comment_throttle (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT comment_throttle_pkey PRIMARY KEY (id)
 );
+
+-- ── Indexes ─────────────────────────────────────────────────────────────────
+-- Unlike the table definitions above, these are safe to run as-is. Each one
+-- backs a query the app issues on every page load; without them Postgres
+-- falls back to a sequential scan as the tables grow.
+-- (`articles.url` is already indexed by its UNIQUE constraint, which is what
+-- makes the scraper's "which URLs do we already have" pre-check cheap.)
+
+-- process-articles: find the unprocessed backlog. Partial, since processed
+-- rows are the overwhelming majority and never match.
+CREATE INDEX IF NOT EXISTS articles_unprocessed_idx
+  ON public.articles (id) WHERE processed = false;
+
+-- Home feed (status + processed_at DESC) and the admin list (processed_at DESC).
+CREATE INDEX IF NOT EXISTS processed_articles_feed_idx
+  ON public.processed_articles (status, processed_at DESC);
+
+-- Comment threads for one article, oldest first.
+CREATE INDEX IF NOT EXISTS comments_thread_idx
+  ON public.comments (article_id, status, created_at);
+
+-- Rate-limit lookup: most recent posts from one IP.
+CREATE INDEX IF NOT EXISTS comment_throttle_ip_idx
+  ON public.comment_throttle (ip, created_at DESC);
+
+-- ── Housekeeping ────────────────────────────────────────────────────────────
+-- `comment_throttle` is append-only and only ever read over a 1-hour window, so
+-- it grows without bound. Trim it periodically (e.g. a scheduled job):
+--   DELETE FROM public.comment_throttle WHERE created_at < now() - interval '1 day';

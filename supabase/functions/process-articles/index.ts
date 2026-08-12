@@ -9,9 +9,14 @@ const supabase = createClient(
 const AI_TIMEOUT_MS    = 60_000;
 const AI_MAX_ATTEMPTS  = 3;
 const CONCURRENCY      = 3;
+// Cap the work per invocation. Article bodies are full HTML, and an edge
+// function has a wall-clock budget — an unbounded backlog would load every
+// body into memory and then die partway through. The caller re-invokes while
+// `remaining` is true.
+const BATCH_SIZE       = 20;
 const REQUIRED_FIELDS  = ["teen_headline", "teen_summary", "teen_body", "mood"] as const;
 
-type Article = { id: string; title: string; body: string };
+type Article = { id: number; title: string; body: string };
 type AiOutput = { teen_headline: string; teen_summary: string; teen_body: string; mood: string };
 
 
@@ -27,7 +32,9 @@ Deno.serve(async (req: Request) => {
     .from("articles")
     .select("id, title, body")
     .eq("processed", false)
-    .not("body", "is", null);
+    .not("body", "is", null)
+    .order("id", { ascending: true })
+    .limit(BATCH_SIZE);
 
   if (fetchError) {
     console.error("Fetch error:", fetchError);
@@ -35,7 +42,7 @@ Deno.serve(async (req: Request) => {
   }
   if (!articles?.length) {
     console.log("No unprocessed articles found.");
-    return json({ processed: 0 });
+    return json({ success: 0, failed: 0, remaining: false });
   }
 
   console.log(`Processing ${articles.length} articles...`);
@@ -54,9 +61,14 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // A full batch means there may be more waiting; the caller loops until this
+  // is false. Only claim more work is pending if we actually made progress,
+  // otherwise a permanently failing article would loop forever.
+  const remaining = articles.length === BATCH_SIZE && results.success > 0;
+
   // 200 on full/partial success; 500 only when every article failed.
   const status = results.success === 0 ? 500 : 200;
-  return json(results, status);
+  return json({ ...results, remaining }, status);
 });
 
 

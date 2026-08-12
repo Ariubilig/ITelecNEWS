@@ -45,10 +45,19 @@ jobs:
 
       - name: Trigger AI processing
         run: |
-          curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
-            -H "x-cron-secret: $CRON_SECRET" \
-            -H "Content-Type: application/json" \
-            --silent \
-            --show-error \
-            --fail \
-            --write-out "\nHTTP Status: %{http_code}\n"
+          # The function processes a bounded batch per call and reports whether
+          # more articles are waiting. Keep calling until it says it's done.
+          for i in $(seq 1 10); do
+            echo "── Batch $i ──"
+            response=$(curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
+              -H "x-cron-secret: $CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              --silent --show-error --fail)
+            echo "$response"
+
+            if [ "$(echo "$response" | jq -r '.remaining')" != "true" ]; then
+              echo "All batches processed."
+              exit 0
+            fi
+          done
+          echo "Stopped after 10 batches; remaining articles roll over to the next run."

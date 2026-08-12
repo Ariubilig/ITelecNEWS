@@ -2,7 +2,7 @@ import "./Admin.css";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
-import type { ProcessedArticle } from "@itelecnews/shared";
+import type { ArticleListItem } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
@@ -11,8 +11,20 @@ import { allArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
 
 
+/** Tally the three status buckets in one pass instead of three `filter` scans. */
+function countByStatus(items: ArticleListItem[]) {
+  const counts = { pending: 0, published: 0, rejected: 0 };
+  for (const a of items) {
+    if (a.status === "published") counts.published++;
+    else if (a.status === "rejected") counts.rejected++;
+    else counts.pending++;
+  }
+  return counts;
+}
+
+
 interface AdminCardProps {
-  item: ProcessedArticle;
+  item: ArticleListItem;
   index: number;
   onApprove: (id: number) => void;
   onDecline: (id: number) => void;
@@ -52,12 +64,7 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
         <div className="admin-card-overlay-content">
           <h2 className="admin-card-headline">{headline}</h2>
           <div className="admin-card-badges">
-            <span
-              className="mood-badge"
-              style={{ color: mood.color, background: mood.bg, borderColor: mood.border }}
-            >
-              {mood.label}
-            </span>
+            <span className="mood-badge" style={mood.style}>{mood.label}</span>
             <span className={`status-badge ${isPending ? "status-badge--pending" : "status-badge--published"}`}>
               {isPending ? "Хүлээгдэж байна" : "Нийтлэгдсэн"}
             </span>
@@ -99,7 +106,7 @@ export default function Admin() {
 
   // Only fetch once authed; useQuery stays in the loading state until then.
   const { data, loading, error: loadError, setData } =
-    useQuery<ProcessedArticle[]>(allArticles, [authed], authed);
+    useQuery<ArticleListItem[]>(allArticles, [authed], authed);
   const articles = data ?? [];
   const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
 
@@ -131,9 +138,7 @@ export default function Admin() {
     );
   }
 
-  const pending   = articles.filter((a) => a.status !== "published" && a.status !== "rejected");
-  const published = articles.filter((a) => a.status === "published");
-  const rejected  = articles.filter((a) => a.status === "rejected");
+  const counts = countByStatus(articles);
 
   return (
     <div className="admin-root">
@@ -141,10 +146,10 @@ export default function Admin() {
         <h1 className="admin-title">Бүх мэдээ</h1>
         <div className="admin-header-right">
           <div className="admin-counts">
-            <span className="admin-count-badge admin-count-badge--pending">{pending.length} хүлээгдэж байна</span>
-            <span className="admin-count-badge admin-count-badge--published">{published.length} нийтлэгдсэн</span>
-            {rejected.length > 0 && (
-              <span className="admin-count-badge admin-count-badge--rejected">{rejected.length} татгалзсан</span>
+            <span className="admin-count-badge admin-count-badge--pending">{counts.pending} хүлээгдэж байна</span>
+            <span className="admin-count-badge admin-count-badge--published">{counts.published} нийтлэгдсэн</span>
+            {counts.rejected > 0 && (
+              <span className="admin-count-badge admin-count-badge--rejected">{counts.rejected} татгалзсан</span>
             )}
           </div>
           <button className="admin-logout-btn" onClick={handleLogout}>Гарах</button>

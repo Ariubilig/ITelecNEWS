@@ -51,6 +51,24 @@ async function collectURLs(browser: Browser): Promise<string[]> {
 }
 
 
+// Ask the DB which of these URLs we already have. On a daily run nearly every
+// URL is a repeat, and without this we'd pay a full page load plus the polite
+// delay for each one only to have the unique constraint reject the insert.
+async function selectNewURLs(urls: string[]): Promise<string[]> {
+  if (urls.length === 0) return [];
+
+  const { data, error } = await supabase.from("articles").select("url").in("url", urls);
+  if (error) {
+    // Not fatal: fall back to scraping everything and let the DB dedupe.
+    console.log(`⚠️  Could not check existing URLs (${error.message}); scraping all.`);
+    return urls;
+  }
+
+  const known = new Set(data.map((row) => row.url));
+  return urls.filter((url) => !known.has(url));
+}
+
+
 // Scrape a single article. Returns null if the body element is missing.
 async function scrapeArticle(page: Page, url: string): Promise<ScrapedArticle | null> {
   return withRetry(url, async () => {
@@ -78,7 +96,7 @@ async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> 
   let inserted = 0, skipped = 0, failed = 0;
 
   try {
-    for (const url of urls) {
+    for (const [i, url] of urls.entries()) {
       try {
         const article = await scrapeArticle(page, url);
         if (!article) throw new Error("Article body not found");
@@ -98,7 +116,8 @@ async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> 
         failed++;
         console.log("❌ Failed:", url, "|", (err as Error).message);
       }
-      await sleep(POLITE_DELAY_MS);
+      // No need to be polite after the last one.
+      if (i < urls.length - 1) await sleep(POLITE_DELAY_MS);
     }
   } finally {
     await page.close();
@@ -121,7 +140,11 @@ async function main(): Promise<void> {
 
   try {
     const urls = await collectURLs(browser);
-    await scrapeAndInsert(browser, urls);
+    const fresh = await selectNewURLs(urls);
+    console.log(`${urls.length - fresh.length} already stored, ${fresh.length} to scrape`);
+
+    if (fresh.length === 0) return;
+    await scrapeAndInsert(browser, fresh);
   } finally {
     await browser.close();
   }

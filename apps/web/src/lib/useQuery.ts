@@ -32,11 +32,21 @@ export function useQuery<T>(
   // when their contents change.
   const depKey = JSON.stringify(key);
 
+  // The key we've already loaded, so a `refetch` can be told apart from a real
+  // key change.
+  const loadedKey = useRef<string | null>(null);
+
   useEffect(() => {
     if (!enabled) return;
     let active = true;
+
+    // Only a new key shows the loading state. A refetch keeps the current data
+    // on screen instead of flashing a spinner over it — posting a comment
+    // re-runs the query, and the thread shouldn't blink away underneath it.
+    if (loadedKey.current !== depKey) setLoading(true);
+    loadedKey.current = depKey;
+
     const load = async () => {
-      setLoading(true);
       const res = await queryRef.current();
       if (!active) return;
       setError(!!res.error);

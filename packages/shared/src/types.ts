@@ -29,6 +29,16 @@ export interface ProcessedArticle {
   articles?: Article;
 }
 
+/**
+ * The trimmed shape the grid views fetch. List screens render a thumbnail, a
+ * headline and two badges — never the article body — so they select just these
+ * columns instead of pulling every row's full HTML.
+ */
+export type ArticleListItem =
+  Pick<ProcessedArticle, "id" | "mood" | "status" | "teen_headline"> & {
+    articles?: Pick<Article, "title" | "image">;
+  };
+
 /** Form model for the admin edit modal in the Reading page. */
 export interface EditForm {
   teen_headline: string;
