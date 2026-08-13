@@ -1,11 +1,49 @@
 import "dotenv/config"; // must be first: populates process.env before @itelecnews/env validates
-import puppeteer, { type Browser, type Page } from "puppeteer";
 import type { ScrapedArticle } from "@itelecnews/shared";
 import supabase from "../lib/supabase.js";
+import {
+  ARTICLE_BODY_SELECTOR,
+  CATEGORY_LINK_SELECTOR,
+  collectArticleUrls,
+  describeHtml,
+  parseArticle,
+} from "./parse.js";
 
-const NAV_TIMEOUT_MS = 30_000; // per-navigation cap so one slow page can't stall the run
-const MAX_ATTEMPTS   = 3;      // navigation retries before giving up on a URL
-const POLITE_DELAY_MS = 750;   // pause between article fetches to be gentle on the source
+/**
+ * The source renders every page server-side — the category listing and the
+ * article bodies are both present in the initial HTML response. So this is a
+ * plain HTTP fetch plus an HTML parse; there is no browser to drive.
+ *
+ * It used to run headless Chromium. That failed intermittently in CI for over
+ * a month (roughly two runs in three), always the same way: navigation
+ * succeeded, then `waitForSelector('#articles1-body')` burned its full 30s
+ * timeout three times over. The markup had not changed and the selectors were
+ * still correct — the browser was simply being served something else, and the
+ * script discarded that response without ever looking at it.
+ *
+ * Hence the two changes here. Fetching directly removes the browser as a
+ * variable, and `describeHtml` prints what actually came back whenever an
+ * expected element is missing, so the next failure is diagnosable from the
+ * Actions log instead of guessed at.
+ */
+
+const BASE         = "https://unread.today";
+const CATEGORY_URL = `${BASE}/category/7`;
+
+const REQUEST_TIMEOUT_MS = 20_000; // per-request cap so one slow page can't stall the run
+const MAX_ATTEMPTS       = 4;      // fetch retries before giving up on a URL
+const RETRY_BACKOFF_MS   = 2_000;  // multiplied by attempt number
+const POLITE_DELAY_MS    = 750;    // pause between article fetches to be gentle on the source
+
+// The source sends `vary: User-Agent`, so identify as an ordinary desktop
+// browser rather than as Node's default — which advertises itself as a bot.
+const HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+    "Chrome/140.0.0.0 Safari/537.36",
+  accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "accept-language": "mn,en;q=0.9",
+} as const;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -19,7 +57,7 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
       lastErr = err;
       if (attempt < MAX_ATTEMPTS) {
         console.log(`↻ Retry ${attempt}/${MAX_ATTEMPTS - 1} for ${label}: ${(err as Error).message}`);
-        await sleep(attempt * 1000);
+        await sleep(attempt * RETRY_BACKOFF_MS);
       }
     }
   }
@@ -27,37 +65,46 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 }
 
 
+interface Fetched {
+  html: string;
+  finalUrl: string; // after redirects — a redirect to a block page is a likely failure mode
+}
+
+async function fetchHtml(url: string): Promise<Fetched> {
+  const res = await fetch(url, {
+    headers: HEADERS,
+    redirect: "follow",
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  // Unlike a browser navigation, a bad status is an error here rather than a
+  // page that renders and then fails a selector check 30 seconds later.
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.includes("html")) throw new Error(`Expected HTML, got "${type}"`);
+
+  return { html: await res.text(), finalUrl: res.url };
+}
+
 // 1: Collect all article URLs from /category/7
-async function collectURLs(browser: Browser): Promise<string[]> {
-  const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(NAV_TIMEOUT_MS);
+async function collectURLs(): Promise<string[]> {
+  const { html, finalUrl } = await withRetry("category page", () => fetchHtml(CATEGORY_URL));
+  const urls = collectArticleUrls(html, BASE);
 
-  try {
-    await withRetry("category page", async () => {
-      await page.goto("https://unread.today/category/7", { waitUntil: "domcontentloaded" });
-      await page.waitForSelector("#articles1-body", { timeout: NAV_TIMEOUT_MS });
-    });
-
-    const urls = await page.$$eval(
-      "#articles1-body h3.title a",
-      links => links.map(a => (a as HTMLAnchorElement).href)
+  // The container can survive a redesign while the links inside it change,
+  // which would leave us "succeeding" with nothing scraped and no signal
+  // that the selectors have rotted. A category page always has articles.
+  if (urls.length === 0) {
+    throw new Error(
+      `Category page had no article links — expected '${CATEGORY_LINK_SELECTOR}'. ` +
+        "Either the source markup changed or this was not the page we asked for:" +
+        describeHtml(html, finalUrl),
     );
-
-    // The container can survive a redesign while the links inside it change,
-    // which would leave us "succeeding" with nothing scraped and no signal
-    // that the selectors have rotted. A category page always has articles.
-    if (urls.length === 0) {
-      throw new Error(
-        "Category page had no article links — the source markup has probably " +
-        "changed. Check the '#articles1-body h3.title a' selector.",
-      );
-    }
-
-    console.log(`Found ${urls.length} URLs`);
-    return urls;
-  } finally {
-    await page.close();
   }
+
+  console.log(`Found ${urls.length} URLs`);
+  return urls;
 }
 
 
@@ -79,58 +126,44 @@ async function selectNewURLs(urls: string[]): Promise<string[]> {
 }
 
 
-// Scrape a single article. Returns null if the body element is missing.
-async function scrapeArticle(page: Page, url: string): Promise<ScrapedArticle | null> {
-  return withRetry(url, async () => {
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".article-body.no-wide-image", { timeout: NAV_TIMEOUT_MS });
+// Scrape a single article. Throws if the body element is missing.
+async function scrapeArticle(url: string): Promise<ScrapedArticle> {
+  const { html, finalUrl } = await withRetry(url, () => fetchHtml(url));
 
-    return page.evaluate(() => {
-      const body = document.querySelector(".article-body.no-wide-image");
-      if (!body) return null;
-      return {
-        title: document.querySelector<HTMLElement>("h1.uk-article-title")?.innerText || "",
-        date:  document.querySelector<HTMLElement>(".uk-article-meta span")?.innerText || "",
-        image: document.querySelector('meta[property="og:image"]')?.getAttribute("content") || "",
-        body:  Array.from(body.children).map(el => el.outerHTML).join("\n"),
-      };
-    });
-  });
+  const article = parseArticle(html);
+  if (!article) {
+    throw new Error(
+      `Article body not found ('${ARTICLE_BODY_SELECTOR}'):` + describeHtml(html, finalUrl),
+    );
+  }
+  return article;
 }
 
 
 // 2: Scrape each URL and insert into Supabase (DB skips duplicates via unique URL)
-async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> {
-  const page = await browser.newPage();
-  page.setDefaultNavigationTimeout(NAV_TIMEOUT_MS);
+async function scrapeAndInsert(urls: string[]): Promise<void> {
   let inserted = 0, skipped = 0, failed = 0;
 
-  try {
-    for (const [i, url] of urls.entries()) {
-      try {
-        const article = await scrapeArticle(page, url);
-        if (!article) throw new Error("Article body not found");
+  for (const [i, url] of urls.entries()) {
+    try {
+      const article = await scrapeArticle(url);
+      const { error } = await supabase.from("articles").insert({ url, ...article });
 
-        const { error } = await supabase.from("articles").insert({ url, ...article });
-
-        if (!error) {
-          inserted++;
-          console.log("✅ Inserted:", article.title);
-        } else if (error.code === "23505") { // unique_violation — URL already exists
-          skipped++;
-          console.log("⏭️  Duplicate:", article.title);
-        } else {
-          throw error;
-        }
-      } catch (err) {
-        failed++;
-        console.log("❌ Failed:", url, "|", (err as Error).message);
+      if (!error) {
+        inserted++;
+        console.log("✅ Inserted:", article.title);
+      } else if (error.code === "23505") { // unique_violation — URL already exists
+        skipped++;
+        console.log("⏭️  Duplicate:", article.title);
+      } else {
+        throw error;
       }
-      // No need to be polite after the last one.
-      if (i < urls.length - 1) await sleep(POLITE_DELAY_MS);
+    } catch (err) {
+      failed++;
+      console.log("❌ Failed:", url, "|", (err as Error).message);
     }
-  } finally {
-    await page.close();
+    // No need to be polite after the last one.
+    if (i < urls.length - 1) await sleep(POLITE_DELAY_MS);
   }
 
   console.log(`Done — inserted: ${inserted}, skipped: ${skipped}, failed: ${failed}`);
@@ -138,26 +171,12 @@ async function scrapeAndInsert(browser: Browser, urls: string[]): Promise<void> 
 
 
 async function main(): Promise<void> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu"
-    ]
-  });
+  const urls = await collectURLs();
+  const fresh = await selectNewURLs(urls);
+  console.log(`${urls.length - fresh.length} already stored, ${fresh.length} to scrape`);
 
-  try {
-    const urls = await collectURLs(browser);
-    const fresh = await selectNewURLs(urls);
-    console.log(`${urls.length - fresh.length} already stored, ${fresh.length} to scrape`);
-
-    if (fresh.length === 0) return;
-    await scrapeAndInsert(browser, fresh);
-  } finally {
-    await browser.close();
-  }
+  if (fresh.length === 0) return;
+  await scrapeAndInsert(fresh);
 }
 
 

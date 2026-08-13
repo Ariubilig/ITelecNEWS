@@ -9,9 +9,10 @@
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
     "target": "esnext",
-    // DOM is needed to type-check the browser-context callbacks passed to
-    // Puppeteer's page.evaluate / page.$$eval (they reference document, etc.).
-    "lib": ["esnext", "DOM"],
+    // No DOM: this is a plain Node script that parses HTML as data. Leaving
+    // the DOM lib out means a stray `document` reference is a compile error
+    // rather than something that type-checks and then crashes at runtime.
+    "lib": ["esnext"],
     "types": ["node"],
     "noEmit": true,
 

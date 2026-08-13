@@ -19,10 +19,10 @@ The scraping and AI-rewriting pipeline is **fully automated** (runs daily with n
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   STEP 1: SCRAPER (Node.js)                      │
-│  Puppeteer visits unread.today, collects article URLs,           │
-│  then visits each URL and extracts: title, date, image, body     │
+│  Fetches unread.today, collects article URLs, then fetches       │
+│  each URL and extracts: title, date, image, body                 │
 │  Saves raw articles into Supabase `articles` table               │
-│  (per-page timeout + retries + politeness delay)                 │
+│  (per-request timeout + retries + politeness delay)              │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼
@@ -68,7 +68,7 @@ ITelecNEWS/
 │
 ├── apps/
 │   ├── web/              ← React frontend (was Client/)
-│   └── scraper/          ← Node.js Puppeteer scraper (was Server/)
+│   └── scraper/          ← Node.js HTTP scraper (was Server/)
 │
 ├── packages/
 │   ├── shared/           ← shared TypeScript: types + mood config
@@ -94,7 +94,7 @@ Root scripts (each fans out across workspaces via Turbo):
 | `npm run lint` | ESLint across workspaces |
 | `npm run typecheck` | `tsc` across `shared`, `web`, `scraper` |
 | `npm run dev` | Vite dev server for the web app |
-| `npm run scrape` | Runs the Puppeteer scraper |
+| `npm run scrape` | Runs the scraper |
 | `npm run test` | Vitest suite (root-level, see §13) |
 | `npm run test:watch` | Vitest in watch mode |
 
@@ -129,7 +129,7 @@ The `@itelecnews/shared` package is consumed as raw TypeScript source (no build 
 | Technology | Purpose |
 |---|---|
 | **Node.js / tsx** | Runs the scraping script |
-| **Puppeteer** | Headless Chrome to scrape websites |
+| **Cheerio** | Parses the fetched HTML (no browser needed — the source is server-rendered) |
 | **Supabase JS** | Writes scraped data (uses the service-role key, bypasses RLS) |
 
 ### Database & Cloud
@@ -147,19 +147,23 @@ The `@itelecnews/shared` package is consumed as raw TypeScript source (no build 
 
 ### Step A — GitHub Actions Wakes Up
 
-Every day at 3:00 AM UTC, `.github/workflows/scraper.yml` runs. It sets up **Node.js 22**, installs dependencies, installs the Linux libraries Puppeteer's Chrome needs, runs the scraper, then triggers AI processing. It can also be run manually via **workflow_dispatch**.
+Every day at 3:00 AM UTC, `.github/workflows/scraper.yml` runs. It sets up **Node.js 22**, installs dependencies, runs the scraper, then triggers AI processing. The AI step runs even if scraping fails, so a bad fetch can't strand articles that were scraped on an earlier day. It can also be run manually via **workflow_dispatch**.
 
-### Step B — Puppeteer Scrapes the Source Website
+### Step B — The Scraper Fetches the Source Website
 
-The scraper (`apps/scraper/scrape/scrape.ts`) drives a headless Chrome:
+The source renders every page server-side, so the scraper (`apps/scraper/scrape/scrape.ts`) is a plain HTTP client — no browser:
 
-1. Launches Chrome (no window).
-2. Navigates to `unread.today/category/7`.
-3. Collects article URLs via the selector `#articles1-body h3.title a`.
-4. For each URL, extracts title, publication date, hero image, and full HTML body.
+1. Fetches `unread.today/category/7`.
+2. Collects article URLs via the selector `#articles1-body h3.title a`.
+3. Asks the database which of those URLs are already stored, and skips them.
+4. For each new URL, fetches the page and extracts title, publication date, hero image, and full HTML body.
 5. Inserts each article into the `articles` table. Duplicate URLs are skipped (the `url` column is `UNIQUE`; conflict code `23505` is treated as "already scraped").
 
-**Resilience:** a per-navigation timeout, up to 3 retries with backoff per page, a short politeness delay between articles, guaranteed browser/page cleanup in `finally`, and a non-zero process exit on a fatal error (so a failed run shows red in CI).
+**Resilience:** a per-request timeout, up to 4 retries with backoff per page, a short politeness delay between articles, and a non-zero process exit on a fatal error (so a failed run shows red in CI). A non-HTML or non-2xx response fails immediately rather than being parsed.
+
+**Diagnostics.** If an expected element is missing, the scraper prints the final URL, `<title>`, response size and the first 300 characters of body text before failing. This exists because the previous headless-Chrome version failed intermittently for over a month with nothing in the log but a selector timeout — the response that would have explained it was discarded unread. A challenge page, a redirect, or a rate-limit notice each leave an obvious fingerprint in that dump.
+
+**Why not a browser?** It used to run Puppeteer. Roughly two scheduled runs in three failed, always identically: navigation succeeded and then `waitForSelector('#articles1-body')` timed out three times over, on unchanged code against unchanged markup. Since every element the scraper needs is present in the initial HTML response, the browser was pure cost — ~150 MB of Chromium per CI run, a system-library install step, and an entire class of failure. Fetching directly removes all three.
 
 ### Step C — AI Rewrites the Articles
 
@@ -341,7 +345,7 @@ apps/web/                          ← React frontend
 
 apps/scraper/                      ← Node.js scraper (CI / cron)
 ├── lib/supabase.ts                ← Service-role client (env-validated)
-└── scrape/scrape.ts               ← Puppeteer scraping script
+└── scrape/scrape.ts               ← HTTP + Cheerio scraping script
 
 packages/shared/                   ← Shared TypeScript
 └── src/

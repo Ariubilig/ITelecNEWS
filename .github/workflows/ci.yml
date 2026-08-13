@@ -24,12 +24,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Puppeteer's Chromium download is ~150 MB and nothing here drives a
-      # browser; the scraper is only typechecked.
       - name: Install dependencies
         run: npm ci
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "1"
 
       - name: Typecheck
         run: npm run typecheck
