@@ -1,0 +1,184 @@
+/* ============================================================================
+   Page shell + article card
+   ============================================================================
+   The home grid and the admin grid render the same card. Both stylesheets used
+   to carry their own copy under parallel names (`.card-img` / `.admin-card-img`
+   and so on), and the copies had quietly drifted apart: the overlay gradient
+   ended at 0.85 on one and 0.88 on the other, the overlay padding used a 10px
+   gap on one and 8px on the other. Nobody chose either difference.
+
+   This is the single copy. Page-specific styling — the admin header, the
+   pending outline, the action buttons — stays in the page's own stylesheet.
+
+   Imported once from main.tsx, so it loads before the page stylesheets and
+   they can override it without fighting specificity.
+   ========================================================================= */
+
+
+/* ── Page shell ── */
+.page-root {
+  width: min(52.08%, 1200px);
+  margin-inline: auto;
+  padding-top:    clamp(40px, 9.26vh, 120px);
+  padding-bottom: 80px;
+}
+
+@media (max-width: 900px) {
+  .page-root { width: 100%; padding-inline: 0; }
+}
+@media (max-width: 540px) {
+  /* The clamp bottoms out at 40px, which tucks the first row under the fixed
+     navbar on short (landscape) screens. */
+  .page-root { padding-top: 76px; }
+}
+
+
+/* ── Grid: 3 columns, inner 40px gutter ── */
+.card-grid {
+  padding-inline: 40px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .card-grid {
+    padding-inline: 20px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 540px) {
+  .card-grid {
+    padding-inline: 16px;
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ── Card ── */
+.card {
+  background:    var(--color-bg);
+  border:        1px solid var(--dividerBg);
+  border-radius: 12px;
+  overflow:      hidden;
+  cursor:        pointer;
+  display:       flex;
+  flex-direction: column;
+
+  animation:       fadeUp 0.42s ease both;
+  animation-delay: var(--delay, 0ms);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow   0.2s ease,
+    transform    0.2s ease;
+}
+
+/* On the home grid the whole card is an <a>; on the admin grid only the image
+   is, because the action buttons can't be nested inside an anchor. Resetting
+   both covers either arrangement and is inert on the one that isn't a link. */
+.card,
+.card-img-wrap {
+  text-decoration: none;
+  color:           inherit;
+}
+
+/* Only on real pointers: on touch, :hover latches after a tap and the card
+   stays lifted until you tap elsewhere. */
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--divider);
+    box-shadow:   0 12px 40px rgba(0,0,0,0.45);
+    transform:    translateY(-3px);
+    outline: none;
+  }
+  .card:hover .card-img {
+    transform: scale(1.04);
+  }
+}
+.card:focus-visible {
+  outline: 2px solid var(--textDefault);
+  outline-offset: 2px;
+}
+
+
+/* ── Image wrapper — 3:4 portrait ── */
+.card-img-wrap {
+  position:     relative;
+  aspect-ratio: 3 / 4;
+  overflow:     hidden;
+  background:   #1a1a1a;
+  flex-shrink:  0;
+  display:      block;
+  cursor:       pointer;
+}
+.card-img {
+  width:      100%;
+  height:     100%;
+  object-fit: cover;
+  display:    block;
+  transition: transform 0.4s ease;
+}
+.card-img-empty {
+  width:      100%;
+  height:     100%;
+  background: repeating-linear-gradient(
+    135deg,
+    #1c1c1c 0px, #1c1c1c 1px,
+    #191919 1px, #191919 18px
+  );
+}
+.card-img-overlay {
+  position:   absolute;
+  inset:      0;
+  background: linear-gradient(
+    to bottom,
+    transparent 35%,
+    rgba(0,0,0,0.55) 65%,
+    rgba(0,0,0,0.85) 100%
+  );
+  pointer-events: none;
+}
+
+.card-overlay-content {
+  position:       absolute;
+  bottom:         0;
+  left:           0;
+  right:          0;
+  padding:        16px 14px 14px;
+  display:        flex;
+  flex-direction: column;
+  gap:            10px;
+}
+.card-headline {
+  font-size:   15px;
+  font-weight: 700;
+  line-height: 1.4;
+  color:       #F2F2F2;
+  display:     -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow:    hidden;
+  margin:      0;
+}
+
+/* Card overrides must sit after the base rules above — same specificity, so
+   source order decides. */
+@media (max-width: 540px) {
+  /* A single full-width column makes a 3:4 portrait absurdly tall. */
+  .card-img-wrap { aspect-ratio: 16 / 10; }
+  .card-headline { font-size: 17px; }
+}
+
+
+/* ── Loading / empty / error notices ── */
+.page-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  /* --color-muted was never defined anywhere, so this silently rendered
+     #888 while the other states used --textS. Same grey for all of them now. */
+  color: var(--textS);
+  font-size: 1rem;
+}

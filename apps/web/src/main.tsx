@@ -1,4 +1,6 @@
 import './index.css';
+import './styles/card.css';
+import './styles/ui.css';
 import App from "./App";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";

@@ -35,7 +35,7 @@ export default function AdminLogin() {
       <div className="login-card">
         <h1 className="login-title">Админ</h1>
         <input
-          className="login-input"
+          className="field login-input"
           type="email"
           placeholder="И-мэйл"
           value={email}
@@ -43,7 +43,7 @@ export default function AdminLogin() {
           autoFocus
         />
         <input
-          className="login-input"
+          className="field login-input"
           type="password"
           placeholder="Нууц үг"
           value={password}
@@ -51,7 +51,7 @@ export default function AdminLogin() {
           onKeyDown={(e) => e.key === "Enter" && handleLogin()}
         />
         {error && <p className="login-error">{error}</p>}
-        <button className="login-btn" onClick={handleLogin} disabled={loading}>
+        <button className="btn btn--primary login-btn" onClick={handleLogin} disabled={loading}>
           {loading ? "Нэвтэрч байна…" : "Нэвтрэх"}
         </button>
       </div>

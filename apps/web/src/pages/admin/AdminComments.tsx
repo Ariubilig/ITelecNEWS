@@ -1,7 +1,7 @@
 import "./AdminComments.css";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { COMMENT_STATUSES, COMMENT_STATUS_LABEL } from "@itelecnews/shared";
+import { COMMENT_STATUSES, COMMENT_STATUS_LABEL, COMMENT_STATUS_TONE } from "@itelecnews/shared";
 import type { CommentStatus, ModeratedComment } from "@itelecnews/shared";
 
 import { useQuery } from "../../lib/useQuery";
@@ -59,14 +59,14 @@ export default function AdminComments() {
 
   if (loading) {
     return (
-      <div className="mod-root">
-        <div className="mod-state">Уншиж байна…</div>
+      <div className="page-root mod-root">
+        <div className="page-state page-state--short">Уншиж байна…</div>
       </div>
     );
   }
 
   return (
-    <div className="mod-root">
+    <div className="page-root mod-root">
       <div className="mod-header">
         <div>
           <h1 className="mod-title">Сэтгэгдэл</h1>
@@ -90,10 +90,10 @@ export default function AdminComments() {
         ))}
       </div>
 
-      {error && <div className="mod-error">{error}</div>}
+      {error && <div className="notice tone-danger">{error}</div>}
 
       {visible.length === 0 ? (
-        <div className="mod-state">Энд сэтгэгдэл байхгүй байна.</div>
+        <div className="page-state page-state--short">Энд сэтгэгдэл байхгүй байна.</div>
       ) : (
         <ul className="mod-list">
           {visible.map((c) => (
@@ -102,8 +102,8 @@ export default function AdminComments() {
                 <span className="mod-name">{c.guest_name}</span>
                 <span className="mod-dot" />
                 <span className="mod-time">{timeAgo(c.created_at)}</span>
-                <span className={`mod-badge mod-badge--${c.status}`}>
-                  {COMMENT_STATUS_LABEL[c.status] ?? c.status}
+                <span className={`badge tone-${COMMENT_STATUS_TONE[c.status]}`}>
+                  {COMMENT_STATUS_LABEL[c.status]}
                 </span>
                 {c.parent_id != null && <span className="mod-reply-tag">хариу</span>}
               </div>
@@ -117,7 +117,7 @@ export default function AdminComments() {
               <div className="mod-actions">
                 {c.status !== "published" && (
                   <button
-                    className="mod-btn mod-btn--publish"
+                    className="btn btn--tone tone-ok mod-btn"
                     onClick={() => setStatus(c.id, "published")}
                   >
                     Нийтлэх
@@ -125,7 +125,7 @@ export default function AdminComments() {
                 )}
                 {c.status !== "hidden" && (
                   <button
-                    className="mod-btn mod-btn--hide"
+                    className="btn btn--tone tone-neutral mod-btn"
                     onClick={() => setStatus(c.id, "hidden")}
                   >
                     Нуух
@@ -133,7 +133,7 @@ export default function AdminComments() {
                 )}
                 {c.status !== "deleted" && (
                   <button
-                    className="mod-btn mod-btn--delete"
+                    className="btn btn--tone tone-danger mod-btn"
                     onClick={() => setStatus(c.id, "deleted")}
                   >
                     Устгах

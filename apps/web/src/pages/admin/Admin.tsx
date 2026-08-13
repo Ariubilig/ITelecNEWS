@@ -1,7 +1,7 @@
 import "./Admin.css";
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getMoodStyle, ARTICLE_STATUS_LABEL } from "@itelecnews/shared";
+import { getMoodStyle, ARTICLE_STATUS_LABEL, ARTICLE_STATUS_TONE } from "@itelecnews/shared";
 import type { ArticleListItem, ArticleStatus } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
@@ -43,26 +43,26 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
   return (
     <article
-      className={`admin-card ${isPending ? "admin-card--pending" : ""}`}
+      className={`card admin-card ${isPending ? "admin-card--pending" : ""}`}
       style={{ "--delay": `${index * 40}ms` } as React.CSSProperties}
     >
       {/* Only the image area links out — the action buttons below can't be
           nested inside an anchor. */}
-      <Link className="admin-card-img-wrap" to={`/article/${item.id}`}>
+      <Link className="card-img-wrap" to={`/article/${item.id}`}>
         <FallbackImage
           src={article?.image ?? null}
           alt={headline}
-          className="admin-card-img"
-          fallbackClassName="admin-card-img-empty"
+          className="card-img"
+          fallbackClassName="card-img-empty"
         />
 
-        <div className="admin-card-img-overlay" />
+        <div className="card-img-overlay" />
 
-        <div className="admin-card-overlay-content">
-          <h2 className="admin-card-headline">{headline}</h2>
+        <div className="card-overlay-content">
+          <h2 className="card-headline">{headline}</h2>
           <div className="admin-card-badges">
             <span className="mood-badge" style={mood.style}>{mood.label}</span>
-            <span className={`status-badge status-badge--${status}`}>
+            <span className={`badge tone-${ARTICLE_STATUS_TONE[status]}`}>
               {ARTICLE_STATUS_LABEL[status]}
             </span>
           </div>
@@ -72,15 +72,15 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
       <div className="admin-card-actions">
         {isPending ? (
           <>
-            <button className="action-btn action-btn--approve" onClick={() => onApprove(item.id)}>
+            <button className="btn btn--tone tone-ok action-btn" onClick={() => onApprove(item.id)}>
               Зөвшөөрөх
             </button>
-            <button className="action-btn action-btn--decline" onClick={() => onDecline(item.id)}>
+            <button className="btn btn--tone tone-danger action-btn" onClick={() => onDecline(item.id)}>
               Татгалзах
             </button>
           </>
         ) : (
-          <button className="action-btn action-btn--decline" onClick={() => onDecline(item.id)}>
+          <button className="btn btn--tone tone-danger action-btn" onClick={() => onDecline(item.id)}>
             Буцаах
           </button>
         )}
@@ -120,8 +120,8 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="admin-root">
-        <div className="admin-loading">Уншиж байна…</div>
+      <div className="page-root">
+        <div className="page-state">Уншиж байна…</div>
       </div>
     );
   }
@@ -129,28 +129,28 @@ export default function Admin() {
   const counts = countByStatus(articles);
 
   return (
-    <div className="admin-root">
+    <div className="page-root">
       <div className="admin-header">
         <h1 className="admin-title">Бүх мэдээ</h1>
         <div className="admin-header-right">
           <div className="admin-counts">
-            <span className="admin-count-badge admin-count-badge--pending">{counts.pending} хүлээгдэж байна</span>
-            <span className="admin-count-badge admin-count-badge--published">{counts.published} нийтлэгдсэн</span>
+            <span className="badge badge--count tone-warn">{counts.pending} хүлээгдэж байна</span>
+            <span className="badge badge--count tone-ok">{counts.published} нийтлэгдсэн</span>
             {counts.rejected > 0 && (
-              <span className="admin-count-badge admin-count-badge--rejected">{counts.rejected} татгалзсан</span>
+              <span className="badge badge--count tone-danger">{counts.rejected} татгалзсан</span>
             )}
           </div>
-          <Link className="admin-logout-btn" to="/admin/comments">Сэтгэгдэл</Link>
-          <button className="admin-logout-btn" onClick={handleLogout}>Гарах</button>
+          <Link className="btn btn--ghost admin-logout-btn" to="/admin/comments">Сэтгэгдэл</Link>
+          <button className="btn btn--ghost admin-logout-btn" onClick={handleLogout}>Гарах</button>
         </div>
       </div>
 
-      {error && <div className="admin-error">{error}</div>}
+      {error && <div className="notice tone-danger">{error}</div>}
 
       {articles.length === 0 ? (
-        <div className="admin-empty">Одоохондоо мэдээ байхгүй байна.</div>
+        <div className="page-state">Одоохондоо мэдээ байхгүй байна.</div>
       ) : (
-        <div className="admin-grid">
+        <div className="card-grid">
           {articles.map((item, i) => (
             <AdminCard
               key={item.id}
