@@ -13,7 +13,7 @@ export type AiOutput = {
   mood: string;
 };
 
-export const REQUIRED_FIELDS = [
+const REQUIRED_FIELDS = [
   "teen_headline",
   "teen_summary",
   "teen_body",

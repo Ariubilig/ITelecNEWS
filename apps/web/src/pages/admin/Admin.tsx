@@ -5,7 +5,7 @@ import { getMoodStyle, ARTICLE_STATUS_LABEL, ARTICLE_STATUS_TONE } from "@itelec
 import type { ArticleListItem, ArticleStatus } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
-import { useQuery } from "../../lib/useQuery";
+import { useQuery } from "../../hooks/useQuery";
 import { useAdminGuard } from "../../hooks/useAdminGuard";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allArticles } from "../../lib/queries";
@@ -118,15 +118,15 @@ export default function Admin() {
     navigate("/admin/login");
   };
 
-  if (loading) {
-    return (
-      <div className="page-root">
-        <div className="page-state">Уншиж байна…</div>
-      </div>
-    );
-  }
-
   const counts = countByStatus(articles);
+
+  // Loading and empty render the same shell around one line of text, inside the
+  // page rather than instead of it — an early return dropped the header on
+  // every load and popped it back in.
+  const notice =
+    loading                 ? "Уншиж байна…"
+    : articles.length === 0 ? "Одоохондоо мэдээ байхгүй байна."
+    : null;
 
   return (
     <div className="page-root">
@@ -134,10 +134,14 @@ export default function Admin() {
         <h1 className="admin-title">Бүх мэдээ</h1>
         <div className="admin-header-right">
           <div className="admin-counts">
-            <span className="badge badge--count tone-warn">{counts.pending} хүлээгдэж байна</span>
-            <span className="badge badge--count tone-ok">{counts.published} нийтлэгдсэн</span>
-            {counts.rejected > 0 && (
-              <span className="badge badge--count tone-danger">{counts.rejected} татгалзсан</span>
+            {!loading && (
+              <>
+                <span className="badge badge--count tone-warn">{counts.pending} хүлээгдэж байна</span>
+                <span className="badge badge--count tone-ok">{counts.published} нийтлэгдсэн</span>
+                {counts.rejected > 0 && (
+                  <span className="badge badge--count tone-danger">{counts.rejected} татгалзсан</span>
+                )}
+              </>
             )}
           </div>
           <Link className="btn btn--ghost admin-logout-btn" to="/admin/comments">Сэтгэгдэл</Link>
@@ -147,8 +151,8 @@ export default function Admin() {
 
       {error && <div className="notice tone-danger">{error}</div>}
 
-      {articles.length === 0 ? (
-        <div className="page-state">Одоохондоо мэдээ байхгүй байна.</div>
+      {notice ? (
+        <div className="page-state">{notice}</div>
       ) : (
         <div className="card-grid">
           {articles.map((item, i) => (

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Comment } from "@itelecnews/shared";
 import { supabase } from "../../lib/supabase";
-import { useQuery } from "../../lib/useQuery";
+import { useQuery } from "../../hooks/useQuery";
 import { commentsFor } from "../../lib/queries";
 import { buildTree, timeAgo, type CommentNode } from "../../lib/comments";
 import "./Comment.css";

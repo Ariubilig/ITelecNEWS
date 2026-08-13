@@ -6,7 +6,7 @@ import DOMPurify from "dompurify";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ProcessedArticle } from "@itelecnews/shared";
 
-import { useQuery } from "../../lib/useQuery";
+import { useQuery } from "../../hooks/useQuery";
 import { articleById } from "../../lib/queries";
 import { useSession } from "../../hooks/useSession";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
