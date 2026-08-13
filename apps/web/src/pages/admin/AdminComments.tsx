@@ -55,9 +55,13 @@ export default function AdminComments() {
     const previous = comments;
     setData((prev) => (prev ?? []).map((c) => (c.id === id ? { ...c, status } : c)));
 
+    // `updated_at` is NOT NULL DEFAULT now() but has no trigger maintaining it,
+    // so a row moderated a month later would still read as last-changed at
+    // creation time unless we set it here. This screen is the only writer that
+    // ever updates a comment; if another one appears, move this to a trigger.
     const { error: updateErr } = await supabase
       .from("comments")
-      .update({ status })
+      .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id);
 
     if (updateErr) {

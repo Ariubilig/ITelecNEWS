@@ -9,6 +9,13 @@
 -- policies below were rebuilt from the security model described in
 -- DOCUMENTATION.md §6, not recovered from the live database.
 --
+-- Status of each part:
+--   • Table definitions — VERIFIED against a schema export from the live
+--     project; they match, including the `admins` FK having no ON DELETE rule.
+--   • Policies, is_admin(), indexes — STILL UNVERIFIED. A CREATE TABLE export
+--     doesn't include them, so nothing has been compared. These are the parts
+--     to check with the queries at the bottom of this file.
+--
 -- Production already has working policies. This file exists so the model is in
 -- version control and so a fresh project (staging, disaster recovery) can be
 -- rebuilt. Before applying it to an existing database, diff it against what is
@@ -23,9 +30,16 @@
 
 -- ── Admin identity ──────────────────────────────────────────────────────────
 
+-- Matches the live table exactly (verified against a schema export), so a
+-- fresh project is rebuilt identically rather than subtly differently. Note
+-- the FK has no ON DELETE CASCADE: deleting an auth user with an admins row
+-- will error rather than silently revoking their access, which is the safer
+-- failure for a table that grants write access.
 create table if not exists public.admins (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  user_id    uuid not null,
+  created_at timestamptz not null default now(),
+  constraint admins_pkey primary key (user_id),
+  constraint admins_user_id_fkey foreign key (user_id) references auth.users(id)
 );
 
 -- SECURITY DEFINER so the check itself isn't subject to RLS on `admins`
