@@ -337,7 +337,8 @@ apps/web/                          ← React frontend
     │   │   ├── Reading.tsx        ← Single article view
     │   │   └── EditArticleModal.tsx ← Admin edit modal
     │   └── admin/
-    │       ├── Admin.tsx          ← Moderation dashboard
+    │       ├── Admin.tsx          ← Article review dashboard
+    │       ├── AdminComments.tsx  ← Comment moderation
     │       └── AdminLogin.tsx     ← Email/password login
     ├── components/
     │   ├── UI/
@@ -345,18 +346,26 @@ apps/web/                          ← React frontend
     │   │   ├── ScrollBar/
     │   │   └── FallbackImage.tsx  ← Image with placeholder fallback
     │   └── comment/Comment.tsx    ← Nested comments (posts via edge fn)
+    ├── styles/                    ← Shared CSS, imported from main.tsx (see §10a)
+    │   ├── card.css               ← Page shell, grid, article card, page states
+    │   └── ui.css                 ← Tones, badge, button, field, notice
     ├── hooks/
-    │   ├── useScrollSmoother.ts   ← GSAP smooth scroll
-    │   └── useSession.ts          ← Supabase auth session subscription
+    │   ├── useQuery.ts            ← Tiny data-fetch hook
+    │   ├── useSession.ts          ← Supabase auth session subscription
+    │   ├── useAdminGuard.ts       ← Redirects to login once we know nobody's signed in
+    │   ├── useDocumentTitle.ts    ← Per-page <title>
+    │   └── useScrollSmoother.ts   ← GSAP smooth scroll
     └── lib/
         ├── supabase.ts            ← Browser Supabase client (env-validated)
         ├── queries.ts             ← Central Supabase reads
-        ├── useQuery.ts            ← Tiny data-fetch hook
+        ├── commitStatus.ts        ← Optimistic status write + rollback
         └── comments.ts            ← Flat-to-tree + timeAgo helpers
 
 apps/scraper/                      ← Node.js scraper (CI / cron)
 ├── lib/supabase.ts                ← Service-role client (env-validated)
-└── scrape/scrape.ts               ← HTTP + Cheerio scraping script
+└── scrape/
+    ├── scrape.ts                  ← Fetch, retry, insert
+    └── parse.ts                   ← Pure HTML→data (unit-tested)
 
 packages/shared/                   ← Shared TypeScript
 └── src/
@@ -424,6 +433,75 @@ The AI assigns one of 7 moods. Defined in `packages/shared/src/mood.ts` (`MOOD_C
 | `important` | Чухал | Red |
 
 `getMoodStyle()` falls back to `heavy` for unknown/empty moods.
+
+---
+
+## 10a. UI Primitives — read this before writing CSS
+
+Every screen used to grow its own copy of the same components. There were eight
+button base rules across seven files, three badge bases with eleven colour
+modifiers, two full copies of the article card, and two identical error
+banners — all drifting apart from each other as they went. That is now four
+shared files, and **new screens should compose them rather than restyle them.**
+
+| File | Provides |
+|---|---|
+| `apps/web/src/index.css` | Theme tokens (`--color-bg`, `--textS`, `--accent`, `--danger`, `--fg-rgb`, …) |
+| `apps/web/src/styles/card.css` | `.page-root`, `.card-grid`, `.card` + `.card-img*`, `.page-state` |
+| `apps/web/src/styles/ui.css` | `.badge`, `.btn`, `.field`, `.notice`, `.tone-*` |
+
+Both are imported from `main.tsx`, ahead of every page stylesheet, so a page can
+override at equal specificity without `!important`.
+
+### Tones
+
+A tone is one hue plus the alphas that belong with it. Put a `tone-*` class
+beside a `.badge`, `.btn--tone` or `.notice` and it takes its colour from there:
+
+```html
+<span class="badge tone-warn">Хүлээгдэж байна</span>
+<button class="btn btn--tone tone-danger">Устгах</button>
+<div class="notice tone-danger">Алдаа гарлаа.</div>
+```
+
+`ok` (green) · `warn` (orange) · `danger` (red) · `neutral` (slate)
+
+Which tone a status wears is data, not markup: `ARTICLE_STATUS_TONE` and
+`COMMENT_STATUS_TONE` in `packages/shared/src/status.ts`, beside the labels. Add
+a status there and it gets a colour automatically.
+
+### Buttons
+
+`.btn` carries the shape; one variant carries the intent.
+
+| Class | Use |
+|---|---|
+| `.btn .btn--primary` | Filled call to action — submit, save |
+| `.btn .btn--ghost` | Secondary — cancel, back |
+| `.btn .btn--tone .tone-*` | Tinted outline — approve, hide, delete |
+
+Page stylesheets set **only** padding and page-specific states. If you find
+yourself writing `border-radius: 8px; font-family: inherit; cursor: pointer`
+again, use `.btn`.
+
+### Fields, cards and page states
+
+- `.field` on any `<input>`, `<textarea>` or `<select>` — background, border,
+  focus ring and the 16px mobile size that stops iOS zooming on focus.
+- `.page-root` + `.card-grid` + `.card` for a listing screen; `.page-state` for
+  its loading/empty line (`--short` / `--tall` adjust the height).
+- Loading and empty render **inside** the page, not instead of it, so headers
+  and filters don't pop in after the fetch. See `Home.tsx` for the shape.
+
+### Two rules that keep this from unravelling
+
+1. **Never re-declare a token's value.** Write `var(--textS)`, not
+   `var(--textS, #8c8c8c)`. Fallbacks went stale and started disagreeing with
+   the tokens they shadowed; one of them named `--color-muted`, which does not
+   exist, so it silently rendered a different grey for two years.
+2. **If two screens need the same thing, put it in a primitive.** Both copies
+   drift otherwise — that is exactly how a `0.85` gradient became `0.88` and an
+   `8px` gap became `10px`.
 
 ---
 

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ArticleListItem } from "@itelecnews/shared";
 
-import { useQuery } from "../../lib/useQuery";
+import { useQuery } from "../../hooks/useQuery";
 import { publishedArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
 

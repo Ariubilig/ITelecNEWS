@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { COMMENT_STATUSES, COMMENT_STATUS_LABEL, COMMENT_STATUS_TONE } from "@itelecnews/shared";
 import type { CommentStatus, ModeratedComment } from "@itelecnews/shared";
 
-import { useQuery } from "../../lib/useQuery";
+import { useQuery } from "../../hooks/useQuery";
 import { useAdminGuard } from "../../hooks/useAdminGuard";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allComments } from "../../lib/queries";
@@ -57,13 +57,12 @@ export default function AdminComments() {
 
   const visible = filter === "all" ? comments : comments.filter((c) => c.status === filter);
 
-  if (loading) {
-    return (
-      <div className="page-root mod-root">
-        <div className="page-state page-state--short">Уншиж байна…</div>
-      </div>
-    );
-  }
+  // Same shell for loading and empty, rendered inside the page rather than
+  // instead of it, so the header and filters don't pop in after the fetch.
+  const notice =
+    loading                ? "Уншиж байна…"
+    : visible.length === 0 ? "Энд сэтгэгдэл байхгүй байна."
+    : null;
 
   return (
     <div className="page-root mod-root">
@@ -83,17 +82,19 @@ export default function AdminComments() {
             onClick={() => setFilter(key)}
           >
             {label}
-            <span className="mod-filter-count">
-              {key === "all" ? comments.length : counts[key] ?? 0}
-            </span>
+            {!loading && (
+              <span className="mod-filter-count">
+                {key === "all" ? comments.length : counts[key] ?? 0}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {error && <div className="notice tone-danger">{error}</div>}
 
-      {visible.length === 0 ? (
-        <div className="page-state page-state--short">Энд сэтгэгдэл байхгүй байна.</div>
+      {notice ? (
+        <div className="page-state page-state--short">{notice}</div>
       ) : (
         <ul className="mod-list">
           {visible.map((c) => (
