@@ -25,25 +25,17 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Install Puppeteer dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libnss3 \
-            libatk-bridge2.0-0 \
-            libx11-xcb1 \
-            libxcb-dri3-0 \
-            libdrm2 \
-            libgbm1 \
-            libxshmfence1 \
-            libasound2t64
+        run: npm ci
 
       - name: Run scraper
         run: npm run scrape
 
+      # Runs even when scraping fails. The two steps are independent: articles
+      # scraped on earlier days may still be sitting unprocessed, and holding
+      # them back because today's fetch failed only deepens the backlog. The
+      # job still reports failure via the scrape step above.
       - name: Trigger AI processing
+        if: ${{ !cancelled() }}
         run: |
           # The function processes a bounded batch per call and reports whether
           # more articles are waiting. Keep calling until it says it's done.
