@@ -1,28 +1,14 @@
 import "./Admin.css";
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getMoodStyle, ARTICLE_STATUS_LABEL, ARTICLE_STATUS_TONE } from "@itelecnews/shared";
 import type { ArticleListItem, ArticleStatus } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
-import { useQuery } from "../../hooks/useQuery";
-import { useAdminGuard } from "../../hooks/useAdminGuard";
+import { useAdminList } from "../../hooks/useAdminList";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allArticles } from "../../lib/queries";
-import { commitStatus } from "../../lib/commitStatus";
 import { FallbackImage } from "../../components/UI/FallbackImage";
-
-
-/** Tally the three status buckets in one pass instead of three `filter` scans. */
-function countByStatus(items: ArticleListItem[]) {
-  const counts = { pending: 0, published: 0, rejected: 0 };
-  for (const a of items) {
-    if (a.status === "published") counts.published++;
-    else if (a.status === "rejected") counts.rejected++;
-    else counts.pending++;
-  }
-  return counts;
-}
 
 
 interface AdminCardProps {
@@ -92,24 +78,16 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const authed = useAdminGuard();
-  const [actionError, setActionError] = useState("");
-
   useDocumentTitle("Бүх мэдээ — Админ");
 
-  // Only fetch once authed; useQuery stays in the loading state until then.
-  const { data, loading, error: loadError, setData } =
-    useQuery<ArticleListItem[]>(allArticles, [authed], authed);
-  const articles = data ?? [];
-  const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
+  const { rows: articles, counts, loading, error, update } = useAdminList<ArticleListItem>({
+    query: allArticles,
+    table: "processed_articles",
+    loadError: "Мэдээг ачаалахад алдаа гарлаа.",
+  });
 
-  const setStatus = async (id: number, status: ArticleStatus, failMessage: string) =>
-    setActionError(
-      await commitStatus({
-        table: "processed_articles",
-        id, patch: { status }, rows: articles, setRows: setData, failMessage,
-      }),
-    );
+  const setStatus = (id: number, status: ArticleStatus, failMessage: string) =>
+    update(id, { status }, failMessage);
 
   const handleApprove = (id: number) => setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
   const handleDecline = (id: number) => setStatus(id, "rejected",  "Татгалзахад алдаа гарлаа.");
@@ -117,8 +95,6 @@ export default function Admin() {
     await supabase.auth.signOut();
     navigate("/admin/login");
   };
-
-  const counts = countByStatus(articles);
 
   // Loading and empty render the same shell around one line of text, inside the
   // page rather than instead of it — an early return dropped the header on
@@ -136,9 +112,9 @@ export default function Admin() {
           <div className="admin-counts">
             {!loading && (
               <>
-                <span className="badge badge--count tone-warn">{counts.pending} хүлээгдэж байна</span>
-                <span className="badge badge--count tone-ok">{counts.published} нийтлэгдсэн</span>
-                {counts.rejected > 0 && (
+                <span className="badge badge--count tone-warn">{counts.draft ?? 0} хүлээгдэж байна</span>
+                <span className="badge badge--count tone-ok">{counts.published ?? 0} нийтлэгдсэн</span>
+                {(counts.rejected ?? 0) > 0 && (
                   <span className="badge badge--count tone-danger">{counts.rejected} татгалзсан</span>
                 )}
               </>

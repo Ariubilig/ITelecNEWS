@@ -1,18 +1,6 @@
-/* ============================================================================
-   Page shell + article card
-   ============================================================================
-   The home grid and the admin grid render the same card. Both stylesheets used
-   to carry their own copy under parallel names (`.card-img` / `.admin-card-img`
-   and so on), and the copies had quietly drifted apart: the overlay gradient
-   ended at 0.85 on one and 0.88 on the other, the overlay padding used a 10px
-   gap on one and 8px on the other. Nobody chose either difference.
-
-   This is the single copy. Page-specific styling — the admin header, the
-   pending outline, the action buttons — stays in the page's own stylesheet.
-
-   Imported once from main.tsx, so it loads before the page stylesheets and
-   they can override it without fighting specificity.
-   ========================================================================= */
+/* Page shell and article card — shared by the home and admin grids.
+   Page-specific styling stays in the page's own stylesheet. Imported from
+   main.tsx ahead of those, so a page can override at equal specificity. */
 
 
 /* ── Page shell ── */
@@ -74,9 +62,8 @@
     transform    0.2s ease;
 }
 
-/* On the home grid the whole card is an <a>; on the admin grid only the image
-   is, because the action buttons can't be nested inside an anchor. Resetting
-   both covers either arrangement and is inert on the one that isn't a link. */
+/* The home card is an <a>; on the admin card only the image is, because the
+   action buttons can't nest inside an anchor. Resetting both covers either. */
 .card,
 .card-img-wrap {
   text-decoration: none;
@@ -162,8 +149,7 @@
   margin:      0;
 }
 
-/* Card overrides must sit after the base rules above — same specificity, so
-   source order decides. */
+/* After the base rules above: same specificity, so source order decides. */
 @media (max-width: 540px) {
   /* A single full-width column makes a 3:4 portrait absurdly tall. */
   .card-img-wrap { aspect-ratio: 16 / 10; }
@@ -177,8 +163,6 @@
   align-items: center;
   justify-content: center;
   min-height: 40vh;
-  /* --color-muted was never defined anywhere, so this silently rendered
-     #888 while the other states used --textS. Same grey for all of them now. */
   color: var(--textS);
   font-size: 1rem;
 }

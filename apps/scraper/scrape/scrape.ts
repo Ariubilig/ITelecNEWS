@@ -10,21 +10,12 @@ import {
 } from "./parse.js";
 
 /**
- * The source renders every page server-side — the category listing and the
- * article bodies are both present in the initial HTML response. So this is a
- * plain HTTP fetch plus an HTML parse; there is no browser to drive.
+ * The source renders every page server-side, so this is a plain HTTP fetch and
+ * an HTML parse — no browser to drive.
  *
- * It used to run headless Chromium. That failed intermittently in CI for over
- * a month (roughly two runs in three), always the same way: navigation
- * succeeded, then `waitForSelector('#articles1-body')` burned its full 30s
- * timeout three times over. The markup had not changed and the selectors were
- * still correct — the browser was simply being served something else, and the
- * script discarded that response without ever looking at it.
- *
- * Hence the two changes here. Fetching directly removes the browser as a
- * variable, and `describeHtml` prints what actually came back whenever an
- * expected element is missing, so the next failure is diagnosable from the
- * Actions log instead of guessed at.
+ * When something is missing, `describeHtml` prints what actually came back. The
+ * headless-Chrome version this replaced failed for a month with nothing in the
+ * log but a selector timeout, because it discarded the response unread.
  */
 
 const BASE         = "https://unread.today";

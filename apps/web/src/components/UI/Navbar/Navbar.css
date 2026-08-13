@@ -1,9 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap');
 
-/* `left: 0` + `right: 0` spans the viewport at any size. It previously also
-   set `width: 1920px`, which wins over `right` when all three are given — so
-   the bar was always 1920px wide and centred its brand at ~893px regardless of
-   the screen, correct only on a display exactly that wide. */
+/* `left: 0` + `right: 0` spans the viewport at any size. Don't add `width`:
+   with all three set, width wins over `right` and the bar stops being fluid. */
 .navbar {
     position: fixed;
     top: 20px;
