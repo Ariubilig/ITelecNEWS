@@ -80,13 +80,13 @@
    logout goes red), so each keeps its own rather than pretending to share. */
 .btn--ghost {
   font-weight:  400;
-  color:        var(--textS, #8c8c8c);
-  border-color: var(--dividerBg, #ffffff1f);
+  color:        var(--textS);
+  border-color: var(--dividerBg);
 }
 
 /* Filled call-to-action: the modal save and the login submit. */
 .btn--primary {
-  background: #3b82f6;
+  background: var(--accent);
   /* `none`, not a transparent 1px: with border-box the border would eat 2px
      of the padding and the button would sit shorter than it used to. */
   border: none;
@@ -94,7 +94,7 @@
   font-size: 14px;
 }
 @media (hover: hover) {
-  .btn--primary:hover:not(:disabled) { background: #2563eb; }
+  .btn--primary:hover:not(:disabled) { background: var(--accent-hover); }
 }
 
 /* Tinted, outlined action — approve / decline / publish / hide / delete.
@@ -123,3 +123,42 @@
    two contexts that want a different height. */
 .page-state--short { min-height: 30vh; }
 .page-state--tall  { min-height: 50vh; }
+
+
+/* ── Form control ────────────────────────────────────────────────────────
+   The login form and the edit modal styled their inputs identically, down to
+   the focus colour, differing only by a couple of pixels of padding. The
+   comment form is deliberately not this: it tints against --fg-rgb so it
+   works on the light theme, and keeps its own rules. */
+.field {
+  width:         100%;
+  padding:       9px 12px;
+  background:    var(--dividerBg);
+  border:        1px solid var(--dividerBg);
+  border-radius: 8px;
+  color:         var(--textDefault);
+  font-size:     14px;
+  font-family:   inherit;
+  outline:       none;
+  transition:    border-color 0.15s;
+}
+.field:focus { border-color: var(--accent); }
+.field::placeholder { color: var(--textS); }
+
+
+/* ── Notice ──────────────────────────────────────────────────────────────
+   An inline banner. Both admin screens carried an identical copy. */
+.notice {
+  margin:        0 0 16px;
+  padding:       12px 16px;
+  border:        1px solid rgba(var(--tone), var(--tone-border));
+  background:    rgba(var(--tone), 0.10);
+  border-radius: 8px;
+  color:         rgb(var(--tone));
+  font-size:     0.95rem;
+}
+
+/* 16px stops iOS Safari zooming the page when a field takes focus. */
+@media (max-width: 600px) {
+  .field { font-size: 16px; padding: 11px 12px; }
+}

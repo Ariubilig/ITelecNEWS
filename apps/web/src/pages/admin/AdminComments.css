@@ -161,16 +161,6 @@
   flex-wrap: wrap;
 }
 
-.mod-error {
-  margin:        0 0 16px;
-  padding:       12px 16px;
-  border:        1px solid rgba(248, 113, 113, 0.35);
-  background:    rgba(248, 113, 113, 0.10);
-  border-radius: 8px;
-  color:         #f87171;
-  font-size:     0.95rem;
-}
-
 /* ── Mobile ── */
 @media (max-width: 900px) {
   .mod-root {

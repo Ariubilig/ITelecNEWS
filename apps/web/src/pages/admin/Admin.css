@@ -11,7 +11,7 @@
 .admin-title {
   font-size:   22px;
   font-weight: 700;
-  color:       var(--textDefault, #f2f2f2);
+  color:       var(--textDefault);
 }
 .admin-header-right {
   display:     flex;
@@ -27,9 +27,9 @@
 .admin-logout-btn {
   padding:       6px 16px;
   background:    transparent;
-  border:        1px solid var(--dividerBg, #ffffff1f);
+  border:        1px solid var(--dividerBg);
   border-radius: 8px;
-  color:         var(--textS, #8c8c8c);
+  color:         var(--textS);
   font-size:     13px;
   font-family:   inherit;
   cursor:        pointer;
@@ -69,16 +69,6 @@
   display:   flex;
   gap:       8px;
   padding:   10px 12px 12px;
-}
-
-.admin-error {
-  margin:        0 0 16px;
-  padding:       12px 16px;
-  border:        1px solid rgba(248, 113, 113, 0.35);
-  background:    rgba(248, 113, 113, 0.10);
-  border-radius: 8px;
-  color:         #f87171;
-  font-size:     0.95rem;
 }
 
 /* Sizing and states the .btn primitives deliberately leave to the page. */

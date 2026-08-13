@@ -57,8 +57,8 @@
 
 /* ── Card ── */
 .card {
-  background:    var(--color-bg, #151515);
-  border:        1px solid var(--dividerBg, #ffffff1f);
+  background:    var(--color-bg);
+  border:        1px solid var(--dividerBg);
   border-radius: 12px;
   overflow:      hidden;
   cursor:        pointer;
@@ -87,7 +87,7 @@
    stays lifted until you tap elsewhere. */
 @media (hover: hover) {
   .card:hover {
-    border-color: var(--divider, #ffffff40);
+    border-color: var(--divider);
     box-shadow:   0 12px 40px rgba(0,0,0,0.45);
     transform:    translateY(-3px);
     outline: none;
@@ -97,7 +97,7 @@
   }
 }
 .card:focus-visible {
-  outline: 2px solid var(--textDefault, #fff);
+  outline: 2px solid var(--textDefault);
   outline-offset: 2px;
 }
 
@@ -177,6 +177,8 @@
   align-items: center;
   justify-content: center;
   min-height: 40vh;
-  color: var(--color-muted, #888);
+  /* --color-muted was never defined anywhere, so this silently rendered
+     #888 while the other states used --textS. Same grey for all of them now. */
+  color: var(--textS);
   font-size: 1rem;
 }

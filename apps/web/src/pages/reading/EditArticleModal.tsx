@@ -66,14 +66,14 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
 
         <label className="edit-label">Гарчиг</label>
         <input
-          className="edit-input"
+          className="field edit-input"
           value={form.teen_headline}
           onChange={(e) => setField("teen_headline", e.target.value)}
         />
 
         <label className="edit-label">Хураангуй</label>
         <textarea
-          className="edit-textarea"
+          className="field edit-textarea"
           rows={3}
           value={form.teen_summary}
           onChange={(e) => setField("teen_summary", e.target.value)}
@@ -81,7 +81,7 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
 
         <label className="edit-label">Агуулга (HTML)</label>
         <textarea
-          className="edit-textarea"
+          className="field edit-textarea"
           rows={10}
           value={form.teen_body}
           onChange={(e) => setField("teen_body", e.target.value)}
@@ -89,7 +89,7 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
 
         <label className="edit-label">Зурагны URL</label>
         <input
-          className="edit-input"
+          className="field edit-input"
           placeholder="https://..."
           value={form.image}
           onChange={(e) => setField("image", e.target.value)}
@@ -99,7 +99,7 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
           <div className="edit-col">
             <label className="edit-label">Сэтгэл</label>
             <select
-              className="edit-select"
+              className="field edit-select"
               value={form.mood}
               onChange={(e) => setField("mood", e.target.value as Mood)}
             >
@@ -111,7 +111,7 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
           <div className="edit-col">
             <label className="edit-label">Төлөв</label>
             <select
-              className="edit-select"
+              className="field edit-select"
               value={form.status}
               onChange={(e) => setField("status", e.target.value as ArticleStatus)}
             >

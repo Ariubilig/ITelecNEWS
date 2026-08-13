@@ -20,6 +20,12 @@
 
   --divider: #ffffff;
   --dividerBg: #ffffff1f;
+
+  /* Accent and danger are the same in both themes: the focus ring and the
+     primary button read as blue either way, and an error should not soften. */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --danger: #f87171;
 }
 
 [data-theme="light"] {

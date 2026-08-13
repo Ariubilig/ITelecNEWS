@@ -90,7 +90,7 @@ export default function AdminComments() {
         ))}
       </div>
 
-      {error && <div className="mod-error">{error}</div>}
+      {error && <div className="notice tone-danger">{error}</div>}
 
       {visible.length === 0 ? (
         <div className="page-state page-state--short">Энд сэтгэгдэл байхгүй байна.</div>

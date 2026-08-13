@@ -145,7 +145,7 @@ export default function Admin() {
         </div>
       </div>
 
-      {error && <div className="admin-error">{error}</div>}
+      {error && <div className="notice tone-danger">{error}</div>}
 
       {articles.length === 0 ? (
         <div className="page-state">Одоохондоо мэдээ байхгүй байна.</div>
