@@ -1,4 +1,3 @@
-import "./Home.css";
 import React from "react";
 import { Link } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
@@ -60,11 +59,11 @@ export default function Home() {
     : null;
 
   return (
-    <div className="home-root">
+    <div className="page-root">
       {notice ? (
-        <div className={loading ? "home-loading" : "home-empty"}>{notice}</div>
+        <div className="page-state">{notice}</div>
       ) : (
-        <div className="articles-grid">
+        <div className="card-grid">
           {articles.map((item, i) => (
             <ArticleCard key={item.id} item={item} index={i} />
           ))}

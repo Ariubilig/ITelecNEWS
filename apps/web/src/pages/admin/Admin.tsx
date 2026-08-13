@@ -43,23 +43,23 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
   return (
     <article
-      className={`admin-card ${isPending ? "admin-card--pending" : ""}`}
+      className={`card admin-card ${isPending ? "admin-card--pending" : ""}`}
       style={{ "--delay": `${index * 40}ms` } as React.CSSProperties}
     >
       {/* Only the image area links out — the action buttons below can't be
           nested inside an anchor. */}
-      <Link className="admin-card-img-wrap" to={`/article/${item.id}`}>
+      <Link className="card-img-wrap" to={`/article/${item.id}`}>
         <FallbackImage
           src={article?.image ?? null}
           alt={headline}
-          className="admin-card-img"
-          fallbackClassName="admin-card-img-empty"
+          className="card-img"
+          fallbackClassName="card-img-empty"
         />
 
-        <div className="admin-card-img-overlay" />
+        <div className="card-img-overlay" />
 
-        <div className="admin-card-overlay-content">
-          <h2 className="admin-card-headline">{headline}</h2>
+        <div className="card-overlay-content">
+          <h2 className="card-headline">{headline}</h2>
           <div className="admin-card-badges">
             <span className="mood-badge" style={mood.style}>{mood.label}</span>
             <span className={`status-badge status-badge--${status}`}>
@@ -120,8 +120,8 @@ export default function Admin() {
 
   if (loading) {
     return (
-      <div className="admin-root">
-        <div className="admin-loading">Уншиж байна…</div>
+      <div className="page-root">
+        <div className="page-state">Уншиж байна…</div>
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function Admin() {
   const counts = countByStatus(articles);
 
   return (
-    <div className="admin-root">
+    <div className="page-root">
       <div className="admin-header">
         <h1 className="admin-title">Бүх мэдээ</h1>
         <div className="admin-header-right">
@@ -148,9 +148,9 @@ export default function Admin() {
       {error && <div className="admin-error">{error}</div>}
 
       {articles.length === 0 ? (
-        <div className="admin-empty">Одоохондоо мэдээ байхгүй байна.</div>
+        <div className="page-state">Одоохондоо мэдээ байхгүй байна.</div>
       ) : (
-        <div className="admin-grid">
+        <div className="card-grid">
           {articles.map((item, i) => (
             <AdminCard
               key={item.id}
