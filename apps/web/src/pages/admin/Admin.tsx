@@ -1,12 +1,13 @@
 import "./Admin.css";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { getMoodStyle } from "@itelecnews/shared";
 import type { ArticleListItem } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
 import { useSession } from "../../hooks/useSession";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allArticles } from "../../lib/queries";
 import { FallbackImage } from "../../components/UI/FallbackImage";
 
@@ -31,27 +32,19 @@ interface AdminCardProps {
 }
 
 function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
-  const navigate  = useNavigate();
   const article   = item.articles;
   const mood      = getMoodStyle(item.mood);
   const headline  = item.teen_headline || article?.title || "Гарчиг байхгүй";
   const isPending = item.status !== "published";
-
-  const open = () => navigate(`/article/${item.id}`);
 
   return (
     <article
       className={`admin-card ${isPending ? "admin-card--pending" : ""}`}
       style={{ "--delay": `${index * 40}ms` } as React.CSSProperties}
     >
-      <div
-        className="admin-card-img-wrap"
-        onClick={open}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === "Enter" && open()}
-        style={{ cursor: "pointer" }}
-      >
+      {/* Only the image area links out — the action buttons below can't be
+          nested inside an anchor. */}
+      <Link className="admin-card-img-wrap" to={`/article/${item.id}`}>
         <FallbackImage
           src={article?.image ?? null}
           alt={headline}
@@ -70,7 +63,7 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
             </span>
           </div>
         </div>
-      </div>
+      </Link>
 
       <div className="admin-card-actions">
         {isPending ? (
@@ -99,6 +92,8 @@ export default function Admin() {
   const authed = !!session;
 
   const [actionError, setActionError] = useState("");
+
+  useDocumentTitle("Бүх мэдээ — Админ");
 
   useEffect(() => {
     if (!authLoading && !authed) navigate("/admin/login");
@@ -152,6 +147,7 @@ export default function Admin() {
               <span className="admin-count-badge admin-count-badge--rejected">{counts.rejected} татгалзсан</span>
             )}
           </div>
+          <Link className="admin-logout-btn" to="/admin/comments">Сэтгэгдэл</Link>
           <button className="admin-logout-btn" onClick={handleLogout}>Гарах</button>
         </div>
       </div>

@@ -9,6 +9,7 @@ import type { ProcessedArticle } from "@itelecnews/shared";
 import { useQuery } from "../../lib/useQuery";
 import { articleById } from "../../lib/queries";
 import { useSession } from "../../hooks/useSession";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 import Comments from "../../components/comment/Comment";
 import EditArticleModal from "./EditArticleModal";
@@ -82,6 +83,8 @@ export default function Reading() {
   const mood     = getMoodStyle(item?.mood);
   const heroSrc  = failedHeroId === id ? null : article?.image ?? null;
   const headline = item?.teen_headline || article?.title || "Гарчиг байхгүй";
+  // Undefined until the article resolves, so the tab doesn't flash a placeholder.
+  useDocumentTitle(item ? headline : undefined);
   const summary  = item?.teen_summary;
   const body     = item?.teen_body || article?.body;
 

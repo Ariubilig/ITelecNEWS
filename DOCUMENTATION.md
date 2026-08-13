@@ -71,11 +71,18 @@ ITelecNEWS/
 │   └── scraper/          ← Node.js Puppeteer scraper (was Server/)
 │
 ├── packages/
-│   └── shared/           ← shared TypeScript: types + mood config
+│   ├── shared/           ← shared TypeScript: types + mood config
+│   └── env/              ← validated environment variables (web + server)
 │
-├── supabase/             ← database migrations + Deno edge functions
+├── supabase/
+│   ├── migrations/       ← RLS + admin policies (must stay in version control)
+│   ├── functions/        ← Deno edge functions
+│   └── tables.sql        ← schema reference + indexes
+│
+├── tests/                ← Vitest suite (see §13)
 │
 └── .github/workflows/
+    ├── ci.yml            ← typecheck / lint / test / build on every PR
     └── scraper.yml       ← daily GitHub Actions automation
 ```
 
@@ -88,6 +95,8 @@ Root scripts (each fans out across workspaces via Turbo):
 | `npm run typecheck` | `tsc` across `shared`, `web`, `scraper` |
 | `npm run dev` | Vite dev server for the web app |
 | `npm run scrape` | Runs the Puppeteer scraper |
+| `npm run test` | Vitest suite (root-level, see §13) |
+| `npm run test:watch` | Vitest in watch mode |
 
 The `@itelecnews/shared` package is consumed as raw TypeScript source (no build step) by both `web` (Vite, `moduleResolution: bundler`) and `scraper` (`nodenext`). Its barrel uses explicit `.js` extensions so both resolvers are satisfied.
 
@@ -205,6 +214,10 @@ Guest comments (no account needed) support nested replies. To prevent spam and s
 
 A 429 (rate-limited) response surfaces a friendly message in the UI. RLS on `comments` removes anon `INSERT` entirely — the service-role edge function is the only writer.
 
+**Moderation.** Comments are inserted as `published`, so the thread stays live without an admin in the loop. `/admin/comments` (`apps/web/src/pages/admin/AdminComments.tsx`) lists the most recent 200 in any state, filterable by status, and moves them between `published` / `hidden` / `deleted`. RLS returns non-`published` rows only to admins and rejects status writes from anyone else, so the screen is safe to run against the browser client.
+
+Note the rate limit is keyed on `x-forwarded-for` alone, which a phone switching to mobile data defeats. It raises the cost of spam; it does not prevent it.
+
 ---
 
 ## 6. Security Model
@@ -214,6 +227,8 @@ This is the load-bearing part of the production hardening.
 ### Row Level Security (RLS)
 
 RLS is enabled on `articles`, `processed_articles`, and `comments`. Migration: `supabase/migrations/20260601000000_rls_and_admins.sql`.
+
+> ⚠️ **That migration was reconstructed, not recovered.** A bare `migrations` entry in `.gitignore` matched the directory at any depth, so the original was never committed — the security model existed only inside the live Supabase project and as the prose below. The file now in the repo was rebuilt from this section. It is idempotent and safe to run on a fresh project, but **diff it against production before applying it there**; verification queries are at the bottom of the file. The `.gitignore` pattern has been removed.
 
 - **Public (anon) reads:** `articles` (all), `processed_articles` where `status = 'published'`, `comments` where `status = 'published'`. Drafts and rejected content are invisible to the public **at the database level**.
 - **Writes:** admin-only, gated by an `is_admin()` SQL helper.
@@ -412,9 +427,61 @@ The AI assigns one of 7 moods. Defined in `packages/shared/src/mood.ts` (`MOOD_C
 
 ## 12. Known Follow-ups (not yet done)
 
-- Route-based code-splitting / `manualChunks` for the ~600 kB JS bundle.
-- SEO / server-side rendering + per-article OG tags (currently CSR-only).
-- React error boundary + 404 route.
-- Home pagination (currently capped at 60).
-- Image caching to Supabase Storage (currently hotlinks source `og:image`).
-- Comment moderation UI in the admin panel.
+- **Per-article OG tags.** `index.html` now carries static title/description/OG
+  tags, and `useDocumentTitle` sets per-page titles at runtime — but social
+  crawlers don't execute JS, so a shared article link still previews as the
+  site, not the article. Needs prerendering, SSR, or an edge function that
+  injects tags for crawler user-agents.
+- **Article slugs.** URLs are `/article/<processed_articles.id>`. A slug column
+  would make links readable and improve search ranking.
+- **Home pagination** (currently capped at 60; admin at 200, comments at 200).
+- **Image caching to Supabase Storage** (currently hotlinks the source `og:image`).
+- **`articles.date` is `text`**, so articles can't be sorted by publication
+  date — the feed orders by `processed_at` instead.
+- **Deep links from the moderation screen.** `comments.article_id` points at
+  `articles`, but the reading route is keyed on `processed_articles.id`, so
+  each row shows its source title rather than linking to the thread.
+- **`comment_throttle` grows without bound.** It's only ever read over a
+  one-hour window; schedule a periodic trim (see the note in `tables.sql`).
+
+### Done since this list was written
+
+- ~~Route-based code-splitting / `manualChunks`~~ — routes are lazy-loaded and
+  chunking is matched by module path, so `react-dom` is cached rather than
+  re-shipped on every deploy.
+- ~~React error boundary + 404 route~~ — see §13.
+- ~~Comment moderation UI~~ — see §5.
+
+---
+
+## 13. Testing & CI
+
+`npm run test` runs a Vitest suite from the repo root. Tests live in `tests/`
+rather than inside a workspace because the code worth covering is spread across
+three of them, and a root runner can import from all three by relative path.
+
+| File | Covers |
+|---|---|
+| `tests/ai-output.test.ts` | `parseAiOutput` — fenced JSON, literal newlines inside strings, missing fields, unknown moods |
+| `tests/comments.test.ts` | `buildTree` (orphaned replies, out-of-order rows, cycles) and `timeAgo` boundaries |
+| `tests/mood.test.ts` | Mood config, fallback behaviour, and that the edge function's mood list still matches the UI's |
+
+Two things worth knowing:
+
+- The model's JSON parsing was extracted into
+  `supabase/functions/process-articles/parse.ts`, which is deliberately free of
+  imports and of any Deno API so it can be tested outside the edge runtime.
+- The edge function can't import from `packages/shared`, so it keeps its own
+  copy of the valid mood list. `tests/mood.test.ts` asserts the two sets are
+  identical — that test is the only thing stopping them drifting apart and
+  silently rendering every article as `heavy`.
+
+`.github/workflows/ci.yml` runs typecheck, lint, test and build on every pull
+request and on pushes to `main`.
+
+### Error handling
+
+`ErrorBoundary` wraps the router, so a render error (a malformed article body, a
+lazy chunk that fails to load) shows a recoverable message instead of blanking
+the page. Stack traces are shown only in dev. Unmatched routes render the 404
+page rather than an empty layout.

@@ -33,4 +33,9 @@ scrapedURL.json
 articles.json
 
 .temp
-migrations
+
+# NOTE: a bare `migrations` used to live here. It matches a directory of that
+# name at ANY depth, so it silently excluded supabase/migrations/ — including
+# the RLS + admin policies that all of this project's access control depends on.
+# Those must be in version control. If you need to ignore a generated
+# migrations directory, anchor the pattern to it (e.g. /some/path/migrations).

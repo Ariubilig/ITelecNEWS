@@ -58,3 +58,16 @@ export interface Comment {
   content: string;
   created_at: string;
 }
+
+/** The states a comment can be in. `published` is what readers see. */
+export const COMMENT_STATUSES = ["published", "hidden", "deleted", "pending"] as const;
+export type CommentStatus = (typeof COMMENT_STATUSES)[number];
+
+/**
+ * A comment as the admin moderation screen sees it — carries its status and
+ * enough of the source article to identify which thread it belongs to.
+ */
+export interface ModeratedComment extends Comment {
+  status: CommentStatus;
+  articles?: Pick<Article, "id" | "title">;
+}

@@ -43,6 +43,16 @@ async function collectURLs(browser: Browser): Promise<string[]> {
       links => links.map(a => (a as HTMLAnchorElement).href)
     );
 
+    // The container can survive a redesign while the links inside it change,
+    // which would leave us "succeeding" with nothing scraped and no signal
+    // that the selectors have rotted. A category page always has articles.
+    if (urls.length === 0) {
+      throw new Error(
+        "Category page had no article links — the source markup has probably " +
+        "changed. Check the '#articles1-body h3.title a' selector.",
+      );
+    }
+
     console.log(`Found ${urls.length} URLs`);
     return urls;
   } finally {

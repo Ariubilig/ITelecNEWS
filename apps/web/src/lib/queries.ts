@@ -1,4 +1,4 @@
-import type { ArticleListItem } from "@itelecnews/shared";
+import type { ArticleListItem, ModeratedComment } from "@itelecnews/shared";
 import { supabase } from "./supabase";
 
 /**
@@ -54,3 +54,19 @@ export const commentsFor = (articleId: number) =>
     .eq("article_id", articleId)
     .eq("status", "published")
     .order("created_at", { ascending: true });
+
+/**
+ * Every comment in any state for the moderation screen, newest first. RLS
+ * returns non-published rows only to admins, so this is safe to call from the
+ * browser — a non-admin simply sees the published subset.
+ */
+export const allComments = () =>
+  supabase
+    .from("comments")
+    // `comments.article_id` points at `articles`, so this is the direct FK.
+    // The AI headline lives a table further out and isn't worth a nested embed
+    // here — the source title identifies the thread well enough to moderate.
+    .select("*, articles(id, title)")
+    .order("created_at", { ascending: false })
+    .limit(200)
+    .returns<ModeratedComment[]>();
