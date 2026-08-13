@@ -49,26 +49,6 @@
   color:     #f87171;
 }
 
-.login-btn {
-  padding:       10px;
-  background:    #3b82f6;
-  border:        none;
-  border-radius: 8px;
-  color:         #fff;
-  font-size:     14px;
-  font-weight:   600;
-  font-family:   inherit;
-  cursor:        pointer;
-  transition:    background 0.15s ease;
-}
-.login-btn:hover:not(:disabled) {
-  background: #2563eb;
-}
-.login-btn:disabled {
-  opacity: 0.6;
-  cursor:  default;
-}
-
 @media (max-width: 600px) {
   .login-root { padding: 16px; }
   .login-card { padding: 28px 22px; }
@@ -77,5 +57,10 @@
     font-size: 16px;
     padding:   12px 14px;
   }
+}
+
+.login-btn { padding: 10px; }
+
+@media (max-width: 600px) {
   .login-btn { padding: 13px; }
 }

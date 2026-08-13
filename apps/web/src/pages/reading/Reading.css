@@ -100,15 +100,6 @@
     margin-bottom: 0;
 }
 
-.reading-empty {
-    display:         flex;
-    align-items:     center;
-    justify-content: center;
-    min-height:      50vh;
-    color:           var(--textS, #8c8c8c);
-    font-size:       1rem;
-}
-
 @media (max-width: 600px) {
     .hero-wrap { height: 220px; }
     .article-headline { font-size: 20px; }

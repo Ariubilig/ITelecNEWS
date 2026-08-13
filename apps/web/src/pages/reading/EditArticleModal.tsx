@@ -125,10 +125,10 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
         {error && <p className="edit-error">{error}</p>}
 
         <div className="edit-actions">
-          <button className="edit-btn-ghost" onClick={onClose} disabled={saving}>
+          <button className="btn btn--ghost edit-btn" onClick={onClose} disabled={saving}>
             Болих
           </button>
-          <button className="edit-btn-primary" onClick={save} disabled={saving}>
+          <button className="btn btn--primary edit-btn" onClick={save} disabled={saving}>
             {saving ? "Хадгалж байна…" : "Хадгалах"}
           </button>
         </div>

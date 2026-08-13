@@ -116,7 +116,7 @@ export default function Reading() {
         )}
       </div>
 
-      {!loading && !item && <div className="reading-empty">Мэдээ олдсонгүй.</div>}
+      {!loading && !item && <div className="page-state page-state--tall">Мэдээ олдсонгүй.</div>}
 
       {item && (
         <>

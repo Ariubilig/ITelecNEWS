@@ -24,28 +24,6 @@
   gap:     8px;
   flex-wrap: wrap;
 }
-.admin-count-badge {
-  font-size:    12px;
-  font-weight:  600;
-  padding:      4px 12px;
-  border-radius: 20px;
-  border:        1px solid;
-}
-.admin-count-badge--pending {
-  color:        #fb923c;
-  background:   rgba(251,146,60,0.10);
-  border-color: rgba(251,146,60,0.30);
-}
-.admin-count-badge--published {
-  color:        #6ee7b7;
-  background:   rgba(110,231,183,0.10);
-  border-color: rgba(110,231,183,0.28);
-}
-.admin-count-badge--rejected {
-  color:        #f87171;
-  background:   rgba(248,113,113,0.10);
-  border-color: rgba(248,113,113,0.30);
-}
 .admin-logout-btn {
   padding:       6px 16px;
   background:    transparent;
@@ -56,10 +34,6 @@
   font-family:   inherit;
   cursor:        pointer;
   transition:    border-color 0.15s, color 0.15s;
-}
-.admin-logout-btn:hover {
-  border-color: #f87171;
-  color:        #f87171;
 }
 
 @media (max-width: 900px) {
@@ -90,70 +64,11 @@
   align-items: center;
 }
 
-/* .mood-badge lives in index.css (shared with Home). */
-
-.status-badge {
-  font-size:    10px;
-  font-weight:  700;
-  letter-spacing: 0.05em;
-  padding:      3px 8px;
-  border-radius: 20px;
-  border:       1px solid;
-  line-height:  1.4;
-  user-select:  none;
-  text-transform: uppercase;
-}
-/* One class per article status, matching the header count badges — a rejected
-   article used to wear the same orange "pending" badge as a draft while the
-   header counted it as rejected. */
-.status-badge--draft {
-  color:        #fb923c;
-  background:   rgba(251,146,60,0.15);
-  border-color: rgba(251,146,60,0.40);
-}
-.status-badge--published {
-  color:        #6ee7b7;
-  background:   rgba(110,231,183,0.12);
-  border-color: rgba(110,231,183,0.35);
-}
-.status-badge--rejected {
-  color:        #f87171;
-  background:   rgba(248,113,113,0.12);
-  border-color: rgba(248,113,113,0.35);
-}
-
 /* ── Card action buttons ── */
 .admin-card-actions {
   display:   flex;
   gap:       8px;
   padding:   10px 12px 12px;
-}
-.action-btn {
-  flex:          1;
-  padding:       8px 0;
-  border:        1px solid;
-  border-radius: 8px;
-  font-size:     13px;
-  font-weight:   600;
-  font-family:   inherit;
-  cursor:        pointer;
-  transition:    background 0.15s, opacity 0.15s;
-}
-.action-btn--approve {
-  color:        #6ee7b7;
-  background:   rgba(110,231,183,0.08);
-  border-color: rgba(110,231,183,0.30);
-}
-.action-btn--approve:hover {
-  background: rgba(110,231,183,0.18);
-}
-.action-btn--decline {
-  color:        #f87171;
-  background:   rgba(248,113,113,0.08);
-  border-color: rgba(248,113,113,0.25);
-}
-.action-btn--decline:hover {
-  background: rgba(248,113,113,0.18);
 }
 
 .admin-error {
@@ -164,6 +79,15 @@
   border-radius: 8px;
   color:         #f87171;
   font-size:     0.95rem;
+}
+
+/* Sizing and states the .btn primitives deliberately leave to the page. */
+.action-btn { flex: 1; padding: 8px 0; }
+
+.admin-logout-btn { padding: 6px 16px; }
+@media (hover: hover) {
+  /* Signing out is destructive enough to warn about. */
+  .admin-logout-btn:hover { border-color: #f87171; color: #f87171; }
 }
 
 @media (max-width: 540px) {

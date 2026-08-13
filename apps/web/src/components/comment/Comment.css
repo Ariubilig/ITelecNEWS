@@ -109,24 +109,6 @@
 
 .cmt-btn-primary:hover { opacity: 0.88; }
 .cmt-btn-primary:active { transform: scale(0.97); }
-.cmt-btn-primary:disabled { opacity: 0.4; cursor: default; }
-
-.cmt-btn-ghost {
-  background: transparent;
-  color: rgba(var(--fg-rgb), 0.4);
-  border: 1px solid rgba(var(--fg-rgb), 0.1);
-  border-radius: 8px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.cmt-btn-ghost:hover {
-  color: rgba(var(--fg-rgb), 0.7);
-  border-color: rgba(var(--fg-rgb), 0.2);
-}
 
 /* ── comment list ─────────────────────────────────────────────── */
 
@@ -295,5 +277,19 @@
   .cmt-compose-actions > * {
     flex: 1;
     padding-block: 11px;
+  }
+}
+
+/* Tints against --fg-rgb so it follows the theme, unlike the flat grey the
+   shared ghost uses. */
+.cmt-btn-ghost {
+  color:        rgba(var(--fg-rgb), 0.4);
+  border-color: rgba(var(--fg-rgb), 0.1);
+  padding:      8px 14px;
+}
+@media (hover: hover) {
+  .cmt-btn-ghost:hover {
+    color:        rgba(var(--fg-rgb), 0.7);
+    border-color: rgba(var(--fg-rgb), 0.2);
   }
 }

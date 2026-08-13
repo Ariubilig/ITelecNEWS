@@ -1,0 +1,125 @@
+/* ============================================================================
+   UI primitives — tones, badges, buttons, page states
+   ============================================================================
+   Every screen had grown its own copy of these. There were eight button base
+   rules across seven files (.action-btn, .mod-btn, .cmt-btn-primary,
+   .cmt-btn-ghost, .edit-btn-primary, .edit-btn-ghost, .login-btn,
+   .admin-logout-btn), all repeating the same border-radius, font-family,
+   cursor and transition and differing only in padding and colour. Badges were
+   the same story: three base rules and eleven colour modifiers, where the
+   modifiers were literally the same rgba triples written out again.
+
+   Pages now compose these primitives and keep only what is genuinely their
+   own. Loaded from main.tsx, ahead of the page stylesheets, so a page can
+   still override at equal specificity.
+   ========================================================================= */
+
+
+/* ── Tones ───────────────────────────────────────────────────────────────
+   A tone is one hue plus the two alphas that go with it. The alphas travel
+   with the colour rather than the component, because that is how they were
+   already being used: orange was 0.15/0.40 everywhere it appeared, the rest
+   0.12/0.35, in both the admin grid and the moderation list. */
+.tone-ok      { --tone: 110, 231, 183; --tone-bg: 0.12; --tone-border: 0.35; }
+.tone-warn    { --tone: 251, 146,  60; --tone-bg: 0.15; --tone-border: 0.40; }
+.tone-danger  { --tone: 248, 113, 113; --tone-bg: 0.12; --tone-border: 0.35; }
+.tone-neutral { --tone: 168, 181, 200; --tone-bg: 0.12; --tone-border: 0.35; }
+
+
+/* ── Badge ── */
+.badge {
+  font-size:      10px;
+  font-weight:    700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding:        3px 8px;
+  border-radius:  20px;
+  /* The admin grid's badge set this; the moderation list's did not. Keeping it
+     is the deliberate-looking value, and costs the moderation rows ~2px each. */
+  line-height:    1.4;
+  user-select:    none;
+  color:          rgb(var(--tone));
+  background:     rgba(var(--tone), var(--tone-bg));
+  border:         1px solid rgba(var(--tone), var(--tone-border));
+}
+
+/* Header tallies: bigger, and quieter than the badge sitting on a photo. */
+.badge--count {
+  --tone-bg:     0.10;
+  --tone-border: 0.30;
+  font-size:      12px;
+  font-weight:    600;
+  letter-spacing: normal;
+  text-transform: none;
+  padding:        4px 12px;
+}
+
+
+/* ── Button ──────────────────────────────────────────────────────────────
+   Base carries what all eight shared. Variants set only padding and colour. */
+.btn {
+  font-family:   inherit;
+  font-size:     13px;
+  font-weight:   600;
+  padding:       8px 16px;
+  border:        1px solid transparent;
+  border-radius: 8px;
+  background:    transparent;
+  cursor:        pointer;
+  transition:
+    background   0.15s,
+    border-color 0.15s,
+    color        0.15s,
+    opacity      0.15s;
+}
+
+/* Secondary actions read as regular weight, which is how each page's own
+   ghost button already rendered — none of them set a weight.
+   No :hover here on purpose: the three ghost buttons genuinely disagree (the
+   modal shifts only its border, the comment form tints against --fg-rgb, and
+   logout goes red), so each keeps its own rather than pretending to share. */
+.btn--ghost {
+  font-weight:  400;
+  color:        var(--textS, #8c8c8c);
+  border-color: var(--dividerBg, #ffffff1f);
+}
+
+/* Filled call-to-action: the modal save and the login submit. */
+.btn--primary {
+  background: #3b82f6;
+  /* `none`, not a transparent 1px: with border-box the border would eat 2px
+     of the padding and the button would sit shorter than it used to. */
+  border: none;
+  color: #fff;
+  font-size: 14px;
+}
+@media (hover: hover) {
+  .btn--primary:hover:not(:disabled) { background: #2563eb; }
+}
+
+/* Tinted, outlined action — approve / decline / publish / hide / delete.
+   Colour comes from whichever tone class sits alongside it. */
+.btn--tone {
+  color:        rgb(var(--tone));
+  background:   rgba(var(--tone), 0.08);
+  border-color: rgba(var(--tone), 0.30);
+}
+@media (hover: hover) {
+  /* 0.18 in every original, independent of the tone's resting alpha. */
+  .btn--tone:hover { background: rgba(var(--tone), 0.18); }
+}
+/* A tinted button is quieter than a badge of the same tone — 0.08/0.30 rather
+   than the badge's 0.12/0.35 — so it carries its own alphas. The two danger
+   buttons used a 0.25 border where every other tone used 0.30; that is the
+   same kind of drift as the rest and is now 0.30 throughout. */
+
+/* The three disabled styles were 0.4, 0.5 and 0.6 — drift, not a decision,
+   and only ever visible for the moment a request is in flight. */
+.btn:disabled { opacity: 0.5; cursor: default; }
+
+
+/* ── Loading / empty / error notices ─────────────────────────────────────
+   `.page-state` is defined in card.css with the page shell; these are the
+   two contexts that want a different height. */
+.page-state--short { min-height: 30vh; }
+.page-state--tall  { min-height: 50vh; }

@@ -98,11 +98,11 @@ function ComposeForm({ articleId, parentId, onPosted, onCancel, autoFocus }: Com
       {error && <p className="cmt-err">{error}</p>}
       <div className="cmt-compose-actions">
         {onCancel && (
-          <button className="cmt-btn-ghost" onClick={onCancel} disabled={busy}>
+          <button className="btn btn--ghost cmt-btn-ghost" onClick={onCancel} disabled={busy}>
             Болих
           </button>
         )}
-        <button className="cmt-btn-primary" onClick={handleSubmit} disabled={busy}>
+        <button className="btn cmt-btn-primary" onClick={handleSubmit} disabled={busy}>
           {busy ? "Илгээж байна…" : "Илгээх"}
         </button>
       </div>

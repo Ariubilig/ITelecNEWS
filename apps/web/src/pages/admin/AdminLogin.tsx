@@ -51,7 +51,7 @@ export default function AdminLogin() {
           onKeyDown={(e) => e.key === "Enter" && handleLogin()}
         />
         {error && <p className="login-error">{error}</p>}
-        <button className="login-btn" onClick={handleLogin} disabled={loading}>
+        <button className="btn btn--primary login-btn" onClick={handleLogin} disabled={loading}>
           {loading ? "Нэвтэрч байна…" : "Нэвтрэх"}
         </button>
       </div>
