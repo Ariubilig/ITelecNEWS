@@ -224,7 +224,10 @@
   user-select:  none;
   text-transform: uppercase;
 }
-.status-badge--pending {
+/* One class per article status, matching the header count badges — a rejected
+   article used to wear the same orange "pending" badge as a draft while the
+   header counted it as rejected. */
+.status-badge--draft {
   color:        #fb923c;
   background:   rgba(251,146,60,0.15);
   border-color: rgba(251,146,60,0.40);
@@ -233,6 +236,11 @@
   color:        #6ee7b7;
   background:   rgba(110,231,183,0.12);
   border-color: rgba(110,231,183,0.35);
+}
+.status-badge--rejected {
+  color:        #f87171;
+  background:   rgba(248,113,113,0.12);
+  border-color: rgba(248,113,113,0.35);
 }
 
 /* ── Card action buttons ── */

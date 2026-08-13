@@ -1,14 +1,15 @@
 import "./Admin.css";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getMoodStyle } from "@itelecnews/shared";
-import type { ArticleListItem } from "@itelecnews/shared";
+import { getMoodStyle, ARTICLE_STATUS_LABEL } from "@itelecnews/shared";
+import type { ArticleListItem, ArticleStatus } from "@itelecnews/shared";
 
 import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
-import { useSession } from "../../hooks/useSession";
+import { useAdminGuard } from "../../hooks/useAdminGuard";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allArticles } from "../../lib/queries";
+import { commitStatus } from "../../lib/commitStatus";
 import { FallbackImage } from "../../components/UI/FallbackImage";
 
 
@@ -35,7 +36,10 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
   const article   = item.articles;
   const mood      = getMoodStyle(item.mood);
   const headline  = item.teen_headline || article?.title || "Гарчиг байхгүй";
-  const isPending = item.status !== "published";
+  const status    = item.status ?? "draft";
+  // Anything not yet published still offers approve/decline; only the badge
+  // distinguishes a draft from a rejected one.
+  const isPending = status !== "published";
 
   return (
     <article
@@ -58,8 +62,8 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
           <h2 className="admin-card-headline">{headline}</h2>
           <div className="admin-card-badges">
             <span className="mood-badge" style={mood.style}>{mood.label}</span>
-            <span className={`status-badge ${isPending ? "status-badge--pending" : "status-badge--published"}`}>
-              {isPending ? "Хүлээгдэж байна" : "Нийтлэгдсэн"}
+            <span className={`status-badge status-badge--${status}`}>
+              {ARTICLE_STATUS_LABEL[status]}
             </span>
           </div>
         </div>
@@ -88,16 +92,10 @@ function AdminCard({ item, index, onApprove, onDecline }: AdminCardProps) {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useSession();
-  const authed = !!session;
-
+  const authed = useAdminGuard();
   const [actionError, setActionError] = useState("");
 
   useDocumentTitle("Бүх мэдээ — Админ");
-
-  useEffect(() => {
-    if (!authLoading && !authed) navigate("/admin/login");
-  }, [authLoading, authed, navigate]);
 
   // Only fetch once authed; useQuery stays in the loading state until then.
   const { data, loading, error: loadError, setData } =
@@ -105,18 +103,13 @@ export default function Admin() {
   const articles = data ?? [];
   const error = actionError || (loadError ? "Мэдээг ачаалахад алдаа гарлаа." : "");
 
-  const setStatus = async (id: number, status: string, failMsg: string) => {
-    setActionError("");
-    const { error: updateErr } = await supabase
-      .from("processed_articles")
-      .update({ status })
-      .eq("id", id);
-    if (updateErr) {
-      setActionError(failMsg);
-      return;
-    }
-    setData((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, status } : a)));
-  };
+  const setStatus = async (id: number, status: ArticleStatus, failMessage: string) =>
+    setActionError(
+      await commitStatus({
+        table: "processed_articles",
+        id, patch: { status }, rows: articles, setRows: setData, failMessage,
+      }),
+    );
 
   const handleApprove = (id: number) => setStatus(id, "published", "Зөвшөөрөхөд алдаа гарлаа.");
   const handleDecline = (id: number) => setStatus(id, "rejected",  "Татгалзахад алдаа гарлаа.");
