@@ -177,7 +177,18 @@ The function (`supabase/functions/process-articles/index.ts`, Deno):
 1. Checks the `x-cron-secret` header against the `CRON_SECRET` env var (the endpoint is otherwise open — see §6) and returns 401 on mismatch.
 2. Queries articles where `processed = false` and `body` is not null.
 3. Processes up to **3 concurrently** via `p-limit`.
-4. Sends each to **OpenRouter** (model `openai/gpt-oss-120b:free`) with a 60s timeout, **retried up to 3× with backoff** (the free model is flaky).
+4. Sends each to **OpenRouter** with a 60s timeout, **retried up to 3× with backoff** (free models are flaky), falling through a list of models if one is exhausted.
+
+   **Free models get retired without notice, and that is the failure to expect here.** Both original entries (`openai/gpt-oss-120b:free`, `meta-llama/llama-3.3-70b-instruct:free`) were removed, which failed every article and returned a bare `500` to the workflow. When it recurs, list what is currently available:
+
+   ```bash
+   curl -s https://openrouter.ai/api/v1/models \
+     | jq -r '.data[] | select(.id | endswith(":free"))
+              | select(.supported_parameters | index("response_format"))
+              | "\(.id)\t\(.context_length)"'
+   ```
+
+   Replacements must support `response_format: json_object`, hold a full article body (~6k tokens) in context, and handle Mongolian. Update `MODELS` in `supabase/functions/process-articles/index.ts`, then **redeploy the function** — merging to `main` does not deploy it.
 5. Parses the AI JSON response.
 6. UPSERTs into `processed_articles` with **`status = "draft"`**.
 7. Sets `articles.processed = true`.

@@ -18,9 +18,25 @@ const BATCH_SIZE       = 20;
 
 // Free models get rate-limited hard and are retired without much notice, so
 // fall through a list rather than failing the whole run on one model.
+//
+// Both previous entries (openai/gpt-oss-120b:free, meta-llama/llama-3.3-70b-
+// instruct:free) were retired, which failed every article and turned the whole
+// batch into a 500. When that happens again, list what is currently available
+// with:
+//
+//   curl -s https://openrouter.ai/api/v1/models \
+//     | jq -r '.data[] | select(.id | endswith(":free"))
+//              | select(.supported_parameters | index("response_format"))
+//              | "\(.id)\t\(.context_length)"'
+//
+// Entries must support `response_format: json_object` (sent below) and hold a
+// full article body — roughly 6k tokens — in context. Source articles are in
+// Mongolian, so prefer models with real multilingual coverage. Keep providers
+// diverse so one provider's outage doesn't take out the whole list.
 const MODELS = [
-  "openai/gpt-oss-120b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-20b:free",
 ] as const;
 
 type Article = { id: number; title: string; body: string };
@@ -59,10 +75,12 @@ Deno.serve(async (req: Request) => {
   );
 
   const results = { success: 0, failed: 0 };
+  const reasons: string[] = [];
   for (const o of settled) {
     if (o.status === "fulfilled") results.success++;
     else {
       results.failed++;
+      reasons.push((o.reason as Error)?.message ?? String(o.reason));
       console.error("❌ Article failed:", o.reason);
     }
   }
@@ -72,9 +90,14 @@ Deno.serve(async (req: Request) => {
   // otherwise a permanently failing article would loop forever.
   const remaining = articles.length === BATCH_SIZE && results.success > 0;
 
-  // 200 on full/partial success; 500 only when every article failed.
-  const status = results.success === 0 ? 500 : 200;
-  return json({ ...results, remaining }, status);
+  // Every article failing is a systemic fault — an expired API key, or every
+  // model in MODELS retired at once — not a run of bad luck. Name it in the
+  // response: the caller only ever sees this body, so a bare 500 leaves the
+  // real cause visible solely in the Supabase function logs.
+  if (results.success === 0) {
+    return json({ ...results, remaining: false, error: reasons[0] ?? "unknown" }, 500);
+  }
+  return json({ ...results, remaining });
 });
 
 

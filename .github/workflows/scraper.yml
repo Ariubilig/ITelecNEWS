@@ -39,13 +39,23 @@ jobs:
         run: |
           # The function processes a bounded batch per call and reports whether
           # more articles are waiting. Keep calling until it says it's done.
+          #
+          # --fail-with-body, not --fail: on a non-2xx, --fail discards the body
+          # and exits 22, which reports "error 500" and nothing about the cause.
+          # The function puts the reason in that body, so keep it and print it.
           for i in $(seq 1 10); do
             echo "── Batch $i ──"
+            status=0
             response=$(curl -X POST "$SUPABASE_URL/functions/v1/process-articles" \
               -H "x-cron-secret: $CRON_SECRET" \
               -H "Content-Type: application/json" \
-              --silent --show-error --fail)
+              --silent --show-error --fail-with-body) || status=$?
             echo "$response"
+
+            if [ "$status" -ne 0 ]; then
+              echo "::error::Batch $i failed (curl exit $status): $(echo "$response" | jq -r '.error // .' 2>/dev/null || echo "$response")"
+              exit "$status"
+            fi
 
             if [ "$(echo "$response" | jq -r '.remaining')" != "true" ]; then
               echo "All batches processed."
