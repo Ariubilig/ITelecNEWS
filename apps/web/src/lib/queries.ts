@@ -8,14 +8,11 @@ import { supabase } from "./supabase";
  */
 
 /**
- * Columns the grid views actually render. Deliberately narrow: selecting
- * `*, articles(*)` pulled `teen_body` plus the full source `body` HTML for
- * every card, so a 60-card home grid downloaded megabytes of article text it
- * never displayed. Only the reading page needs the bodies.
+ * Columns the grid views actually render. Deliberately narrow — `*, articles(*)`
+ * pulls the full body HTML for every card, which no grid displays.
  *
- * The client has no generated database types, so PostgREST can't tell that
- * `articles` is a many-to-one embed and infers it as an array. `.returns<>()`
- * below states the real row shape.
+ * Without generated database types PostgREST infers the `articles` embed as an
+ * array, so `.returns<>()` below states the real row shape.
  */
 const LIST_COLUMNS = "id, mood, status, teen_headline, articles(title, image)";
 
@@ -57,15 +54,14 @@ export const commentsFor = (articleId: number) =>
 
 /**
  * Every comment in any state for the moderation screen, newest first. RLS
- * returns non-published rows only to admins, so this is safe to call from the
- * browser — a non-admin simply sees the published subset.
+ * returns non-published rows only to admins, so a non-admin simply sees the
+ * published subset.
  */
 export const allComments = () =>
   supabase
     .from("comments")
     // `comments.article_id` points at `articles`, so this is the direct FK.
-    // The AI headline lives a table further out and isn't worth a nested embed
-    // here — the source title identifies the thread well enough to moderate.
+    // The source title identifies the thread well enough to moderate.
     .select("*, articles(id, title)")
     .order("created_at", { ascending: false })
     .limit(200)

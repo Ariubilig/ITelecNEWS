@@ -4,11 +4,9 @@ import { Link } from "react-router-dom";
 import { COMMENT_STATUSES, COMMENT_STATUS_LABEL, COMMENT_STATUS_TONE } from "@itelecnews/shared";
 import type { CommentStatus, ModeratedComment } from "@itelecnews/shared";
 
-import { useQuery } from "../../hooks/useQuery";
-import { useAdminGuard } from "../../hooks/useAdminGuard";
+import { useAdminList } from "../../hooks/useAdminList";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allComments } from "../../lib/queries";
-import { commitStatus } from "../../lib/commitStatus";
 import { timeAgo } from "../../lib/comments";
 
 type Filter = "all" | CommentStatus;
@@ -22,38 +20,20 @@ const FILTERS: { key: Filter; label: string }[] = [
 
 
 export default function AdminComments() {
-  const authed = useAdminGuard();
   const [filter, setFilter] = useState<Filter>("all");
-  const [actionError, setActionError] = useState("");
 
   useDocumentTitle("Сэтгэгдэл — Админ");
 
-  const { data, loading, error: loadError, setData } =
-    useQuery<ModeratedComment[]>(allComments, [authed], authed);
+  const { rows: comments, counts, loading, error, update } = useAdminList<ModeratedComment>({
+    query: allComments,
+    table: "comments",
+    loadError: "Сэтгэгдлийг ачаалахад алдаа гарлаа.",
+  });
 
-  const comments = data ?? [];
-  const error = actionError || (loadError ? "Сэтгэгдлийг ачаалахад алдаа гарлаа." : "");
-
-  // `updated_at` is NOT NULL DEFAULT now() but has no trigger maintaining it,
-  // so a row moderated a month later would still read as last-changed at
-  // creation time unless we set it here. This screen is the only writer that
-  // ever updates a comment; if another one appears, move this to a trigger.
-  const setStatus = async (id: number, status: CommentStatus) =>
-    setActionError(
-      await commitStatus({
-        table: "comments",
-        id,
-        patch: { status, updated_at: new Date().toISOString() },
-        rows: comments,
-        setRows: setData,
-        failMessage: "Төлөв өөрчлөхөд алдаа гарлаа.",
-      }),
-    );
-
-  const counts = comments.reduce<Record<string, number>>((acc, c) => {
-    acc[c.status] = (acc[c.status] ?? 0) + 1;
-    return acc;
-  }, {});
+  // `updated_at` has no trigger behind it, so a row moderated a month later
+  // would still read as last-changed at creation time unless we set it here.
+  const setStatus = (id: number, status: CommentStatus) =>
+    update(id, { status, updated_at: new Date().toISOString() }, "Төлөв өөрчлөхөд алдаа гарлаа.");
 
   const visible = filter === "all" ? comments : comments.filter((c) => c.status === filter);
 

@@ -4,48 +4,34 @@ import { gsap } from "gsap";
 import { ScrollSmoother } from "gsap/ScrollSmoother";
 
 /**
- * Custom vertical scrollbar that mirrors the page scroll position.
+ * Custom vertical scrollbar mirroring the page scroll. Reads and writes the
+ * GSAP smoother's scroll when one exists, the window's otherwise.
  *
- * Works with or without GSAP ScrollSmoother:
- *  - if a ScrollSmoother instance exists, it reads/writes the smoothed scroll;
- *  - otherwise it falls back to the native window scroll.
+ * Layout reads happen only in `measure` (mount, resize, content resize). The
+ * per-frame `tick` reads the cheap scrollTop and writes a composited
+ * `transform`, and only when the thumb actually moved.
  *
- * Performance: expensive layout reads (scrollHeight/clientHeight) happen only
- * on resize via {@link measure}. The per-frame {@link tick} just reads the
- * cheap scrollTop and writes a GPU-composited `transform`, and only when the
- * thumb actually moved.
- *
- * Usage: render once near the app root, e.g. `<ScrollBar />`.
+ * Render once near the app root.
  */
 
-/** Cached layout values + last rendered state. Avoids re-querying the DOM each frame. */
+/** Cached layout, in px, so `tick` never touches the DOM for measurements. */
 interface ScrollMetrics {
-  /** Max scrollable distance in px (scrollHeight - viewport height). */
   max: number;
-  /** Travel range of the thumb inside the track in px (trackHeight - thumbHeight). */
+  /** Travel available to the thumb: track height minus thumb height. */
   range: number;
-  /** Current thumb height in px. */
   thumbH: number;
-  /** Last `translateY` applied to the thumb in px; `-1` forces the first write. */
+  /** Last translateY written; `-1` forces the first write through. */
   top: number;
-  /** Whether the page is scrollable (and the scrollbar is shown). */
   visible: boolean;
 }
 
-/** Pointer-drag state for the thumb. */
 interface DragState {
-  /** True while the thumb is being dragged. */
   active: boolean;
-  /** Pointer Y at drag start, in px. */
   startY: number;
-  /** Thumb `top` at drag start, in px. */
   startTop: number;
 }
 
-/** Current ScrollSmoother instance, or `undefined` if smoothing isn't active. */
 const getSmoother = (): ScrollSmoother | undefined => ScrollSmoother.get();
-
-/** Current scroll offset in px, from the smoother if present, else the window. */
 const getScrollY = (): number => getSmoother()?.scrollTop() ?? window.scrollY;
 
 /**

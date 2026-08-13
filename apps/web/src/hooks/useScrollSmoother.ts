@@ -1,31 +1,11 @@
 /**
- * Initializes GSAP ScrollSmoother on a wrapper element and manages its lifecycle.
+ * Runs GSAP ScrollSmoother on `#smooth-wrapper`, which must contain a
+ * `#smooth-content` child. Skipped on coarse-pointer devices, where the native
+ * scroll is already smooth and the smoother fights the browser. Resets to the
+ * top and refreshes ScrollTrigger on every route change.
  *
- * - Skips initialization on touch/coarse-pointer devices (phones, tablets)
- * - Applies `overflow: hidden` to the wrapper only while the smoother is active
- * - Resets scroll position and refreshes ScrollTrigger on every route change
- * - Refreshes ScrollTrigger on window resize to keep scroll-triggered elements in sync
- * - Cleans up the smoother and resize listener on unmount
- *
- * @param wrapperRef - Ref attached to the `#smooth-wrapper` element. Must contain
- *                     a child with id `#smooth-content` for ScrollSmoother to target.
- *
- * @example
- * const wrapperRef = useRef<HTMLDivElement>(null);
- * useScrollSmoother(wrapperRef);
- *
- * return (
- *   <div id="smooth-wrapper" ref={wrapperRef}>
- *     <div id="smooth-content">
- *       ...
- *     </div>
- *   </div>
- * );
- *
- * @requires react-router-dom - Uses `useLocation` to detect route changes.
+ * One call site: App.tsx.
  */
-
-
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { gsap } from "gsap";

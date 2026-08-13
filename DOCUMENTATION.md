@@ -206,7 +206,7 @@ Admins log in at `/admin/login` (Supabase Auth, email + password). The panel at 
 - **Approve** → `status = "published"`
 - **Decline / unpublish** → `status = "rejected"`
 
-Both admin screens move rows through `commitStatus()` (`apps/web/src/lib/commitStatus.ts`): the row updates in the list immediately and rolls back with an error banner if the database refuses the write — which is exactly what RLS does for a non-admin. Because every new article is a `draft`, **nothing is public until an admin approves it.**
+Both admin screens are built on `useAdminList()` (`apps/web/src/hooks/useAdminList.ts`), which owns the auth guard, the fetch, the per-status tallies and the writer: a row updates in the list immediately and rolls back with an error banner if the database refuses the write — which is exactly what RLS does for a non-admin. Because every new article is a `draft`, **nothing is public until an admin approves it.**
 
 ### Step E — User Visits the Site
 
@@ -351,14 +351,14 @@ apps/web/                          ← React frontend
     │   └── ui.css                 ← Tones, badge, button, field, notice
     ├── hooks/
     │   ├── useQuery.ts            ← Tiny data-fetch hook
-    │   ├── useSession.ts          ← Supabase auth session subscription
+    │   ├── useAdminList.ts        ← Guard + fetch + counts + optimistic write, for admin screens
     │   ├── useAdminGuard.ts       ← Redirects to login once we know nobody's signed in
+    │   ├── useSession.ts          ← Supabase auth session subscription
     │   ├── useDocumentTitle.ts    ← Per-page <title>
     │   └── useScrollSmoother.ts   ← GSAP smooth scroll
     └── lib/
         ├── supabase.ts            ← Browser Supabase client (env-validated)
         ├── queries.ts             ← Central Supabase reads
-        ├── commitStatus.ts        ← Optimistic status write + rollback
         └── comments.ts            ← Flat-to-tree + timeAgo helpers
 
 apps/scraper/                      ← Node.js scraper (CI / cron)
