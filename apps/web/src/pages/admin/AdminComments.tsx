@@ -1,46 +1,32 @@
 import "./AdminComments.css";
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { COMMENT_STATUSES, COMMENT_STATUS_LABEL } from "@itelecnews/shared";
 import type { CommentStatus, ModeratedComment } from "@itelecnews/shared";
 
-import { supabase } from "../../lib/supabase";
 import { useQuery } from "../../lib/useQuery";
-import { useSession } from "../../hooks/useSession";
+import { useAdminGuard } from "../../hooks/useAdminGuard";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { allComments } from "../../lib/queries";
+import { commitStatus } from "../../lib/commitStatus";
 import { timeAgo } from "../../lib/comments";
 
 type Filter = "all" | CommentStatus;
 
+// Derived from the status vocabulary so a new status can't be added to the
+// database and silently go unmoderatable here.
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all",       label: "Бүгд" },
-  { key: "published", label: "Нийтлэгдсэн" },
-  { key: "hidden",    label: "Нуусан" },
-  { key: "pending",   label: "Хүлээгдэж байна" },
-  { key: "deleted",   label: "Устгасан" },
+  { key: "all", label: "Бүгд" },
+  ...COMMENT_STATUSES.map((key) => ({ key, label: COMMENT_STATUS_LABEL[key] })),
 ];
-
-const STATUS_LABEL: Record<CommentStatus, string> = {
-  published: "Нийтлэгдсэн",
-  hidden:    "Нуусан",
-  pending:   "Хүлээгдэж байна",
-  deleted:   "Устгасан",
-};
 
 
 export default function AdminComments() {
-  const navigate = useNavigate();
-  const { session, loading: authLoading } = useSession();
-  const authed = !!session;
-
+  const authed = useAdminGuard();
   const [filter, setFilter] = useState<Filter>("all");
   const [actionError, setActionError] = useState("");
 
   useDocumentTitle("Сэтгэгдэл — Админ");
-
-  useEffect(() => {
-    if (!authLoading && !authed) navigate("/admin/login");
-  }, [authLoading, authed, navigate]);
 
   const { data, loading, error: loadError, setData } =
     useQuery<ModeratedComment[]>(allComments, [authed], authed);
@@ -48,27 +34,21 @@ export default function AdminComments() {
   const comments = data ?? [];
   const error = actionError || (loadError ? "Сэтгэгдлийг ачаалахад алдаа гарлаа." : "");
 
-  // Optimistic: flip the row locally, roll back if the write fails. RLS is the
-  // real gate here — a non-admin's update is rejected by the database.
-  const setStatus = async (id: number, status: CommentStatus) => {
-    setActionError("");
-    const previous = comments;
-    setData((prev) => (prev ?? []).map((c) => (c.id === id ? { ...c, status } : c)));
-
-    // `updated_at` is NOT NULL DEFAULT now() but has no trigger maintaining it,
-    // so a row moderated a month later would still read as last-changed at
-    // creation time unless we set it here. This screen is the only writer that
-    // ever updates a comment; if another one appears, move this to a trigger.
-    const { error: updateErr } = await supabase
-      .from("comments")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", id);
-
-    if (updateErr) {
-      setData(previous);
-      setActionError("Төлөв өөрчлөхөд алдаа гарлаа.");
-    }
-  };
+  // `updated_at` is NOT NULL DEFAULT now() but has no trigger maintaining it,
+  // so a row moderated a month later would still read as last-changed at
+  // creation time unless we set it here. This screen is the only writer that
+  // ever updates a comment; if another one appears, move this to a trigger.
+  const setStatus = async (id: number, status: CommentStatus) =>
+    setActionError(
+      await commitStatus({
+        table: "comments",
+        id,
+        patch: { status, updated_at: new Date().toISOString() },
+        rows: comments,
+        setRows: setData,
+        failMessage: "Төлөв өөрчлөхөд алдаа гарлаа.",
+      }),
+    );
 
   const counts = comments.reduce<Record<string, number>>((acc, c) => {
     acc[c.status] = (acc[c.status] ?? 0) + 1;
@@ -123,7 +103,7 @@ export default function AdminComments() {
                 <span className="mod-dot" />
                 <span className="mod-time">{timeAgo(c.created_at)}</span>
                 <span className={`mod-badge mod-badge--${c.status}`}>
-                  {STATUS_LABEL[c.status] ?? c.status}
+                  {COMMENT_STATUS_LABEL[c.status] ?? c.status}
                 </span>
                 {c.parent_id != null && <span className="mod-reply-tag">хариу</span>}
               </div>

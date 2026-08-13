@@ -1,8 +1,8 @@
 import "./EditArticleModal.css";
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { MOOD_CONFIG } from "@itelecnews/shared";
-import type { EditForm, ProcessedArticle } from "@itelecnews/shared";
+import { MOOD_CONFIG, ARTICLE_STATUSES, ARTICLE_STATUS_LABEL } from "@itelecnews/shared";
+import type { ArticleStatus, EditForm, Mood, ProcessedArticle } from "@itelecnews/shared";
 import { supabase } from "../../lib/supabase";
 
 interface Props {
@@ -101,7 +101,7 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
             <select
               className="edit-select"
               value={form.mood}
-              onChange={(e) => setField("mood", e.target.value)}
+              onChange={(e) => setField("mood", e.target.value as Mood)}
             >
               {Object.entries(MOOD_CONFIG).map(([key, val]) => (
                 <option key={key} value={key}>{val.label}</option>
@@ -113,11 +113,11 @@ export default function EditArticleModal({ item, onClose, onSaved }: Props) {
             <select
               className="edit-select"
               value={form.status}
-              onChange={(e) => setField("status", e.target.value)}
+              onChange={(e) => setField("status", e.target.value as ArticleStatus)}
             >
-              <option value="published">Нийтлэгдсэн</option>
-              <option value="draft">Хүлээгдэж байна</option>
-              <option value="rejected">Татгалзсан</option>
+              {ARTICLE_STATUSES.map((s) => (
+                <option key={s} value={s}>{ARTICLE_STATUS_LABEL[s]}</option>
+              ))}
             </select>
           </div>
         </div>

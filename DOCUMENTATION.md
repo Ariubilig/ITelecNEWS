@@ -206,7 +206,7 @@ Admins log in at `/admin/login` (Supabase Auth, email + password). The panel at 
 - **Approve** → `status = "published"`
 - **Decline / unpublish** → `status = "rejected"`
 
-Mutations check for errors and surface a banner on failure (no silent optimistic updates). Because every new article is a `draft`, **nothing is public until an admin approves it.**
+Both admin screens move rows through `commitStatus()` (`apps/web/src/lib/commitStatus.ts`): the row updates in the list immediately and rolls back with an error banner if the database refuses the write — which is exactly what RLS does for a non-admin. Because every new article is a `draft`, **nothing is public until an admin approves it.**
 
 ### Step E — User Visits the Site
 
@@ -291,7 +291,7 @@ Deploy them with: `supabase functions deploy <name> --no-verify-jwt`.
 | `status` | text | `draft`, `published`, or `rejected` |
 | `processed_at` | timestamptz | When AI finished |
 
-> The editor's status dropdown surfaces `draft` / `published` / `rejected` — matching the DB `CHECK` constraint (an earlier version offered invalid values that caused silent save failures).
+> Statuses are declared once in `packages/shared/src/status.ts` as `ARTICLE_STATUSES` / `COMMENT_STATUSES`, with their Mongolian labels beside them, and the `status` fields are typed as those unions rather than `string`. The editor's dropdown and the moderation filters are both generated from those lists, so the UI cannot offer a value the DB `CHECK` constraint would reject (an earlier version did, causing silent save failures). `tests/status.test.ts` parses the `CHECK` constraints straight out of `supabase/tables.sql` and fails if the TypeScript unions drift from them.
 
 ### `comments` — user comments
 | Column | Type | Notes |
@@ -362,7 +362,8 @@ packages/shared/                   ← Shared TypeScript
 └── src/
     ├── index.ts                   ← Barrel (re-exports with .js extensions)
     ├── types.ts                   ← Article / ProcessedArticle / EditForm …
-    └── mood.ts                    ← MOOD_CONFIG + getMoodStyle()
+    ├── status.ts                  ← ARTICLE_STATUSES / COMMENT_STATUSES + labels
+    └── mood.ts                    ← MOOD_CONFIG + getMoodStyle() + Mood
 
 supabase/
 ├── tables.sql                    ← Schema snapshot (context only)
